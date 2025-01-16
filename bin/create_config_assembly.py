@@ -183,12 +183,12 @@ class CreateConfigurationFile(object):
         #ALL SPEC PARAMETERS
         self.all_qos = "test"
         self.all_time = "00:05:00"
-        self.all_queue = "genD"
+        self.all_queue = "general"
 
         #LONGRANGER SPEC PARAMETERS
         self.longranger_qos = "normal"
         self.longranger_time = "12:00:00"
-        self.longranger_queue = "genD"
+        self.longranger_queue = "general"
         self.longranger_mem = "50G"
 
         #TRIMGALORE PARAMETERS
@@ -197,21 +197,21 @@ class CreateConfigurationFile(object):
 
         #TRIMGALORE SPEC PARAMETERS
         self.trimgalore_qos = "normal"
-        self.trimgalore_time = "3:00:00"
-        self.trimgalore_queue = "genD"
+        self.trimgalore_time = "6:00:00"
+        self.trimgalore_queue = "general"
         self.trimgalore_mem = "50G"
 
         #CONCAT READS SPEC PARAMETERS
         self.concat_reads_qos = "normal"
-        self.concat_reads_time = "10:00:00"
-        self.concat_reads_queue = "genD"
-        self.concat_reads_mem = "5G"
+        self.concat_reads_time = "12:00:00"
+        self.concat_reads_queue = "general"
+        self.concat_reads_mem = "32G"
 
         #NANOPLOT SPEC PARAMETERS
         self.nanoplot_qos = "normal"
-        self.nanoplot_time = "6:00:00"
-        self.nanoplot_queue = "genD"
-        self.nanoplot_mem = "10G"
+        self.nanoplot_time = "12:00:00"
+        self.nanoplot_queue = "general"
+        self.nanoplot_mem = "32G"
 
         #KRAKEN PARAMETERS
         self.kraken2_db = None  
@@ -222,31 +222,31 @@ class CreateConfigurationFile(object):
         #KRAKEN SPEC PARAMETERS
         self.kraken2_qos = "vlong"
         self.kraken2_time = "48:00:00"
-        self.kraken2_queue = "genD"
+        self.kraken2_queue = "general"
         self.kraken2_mem = "10G"
 
         #BUILD MERYL SPEC PARAMETERS
         self.build_meryl_qos = "normal"
         self.build_meryl_time = "6:00:00"
-        self.build_meryl_queue = "genD"
+        self.build_meryl_queue = "general"
         self.build_meryl_mem = "50G"
 
         #CONCAT MERYL SPEC PARAMETERS
         self.concat_meryl_qos = "normal"
         self.concat_meryl_time = "6:00:00"
-        self.concat_meryl_queue = "genD"
+        self.concat_meryl_queue = "general"
         self.concat_meryl_mem = "10G"
 
         #SMUDGEPLOT SPEC PARAMETERS
-        self.smudgeplot_qos = "normal"
-        self.smudgeplot_time = "10:00:00"
-        self.smudgeplot_queue = "genD"
-        self.smudgeplot_mem = "500G"
+        self.smudgeplot_qos = "marathon_assembly"
+        self.smudgeplot_time = "7-00:00:00"
+        self.smudgeplot_queue = "general"
+        self.smudgeplot_mem = "750G"
 
         #GENOMESCOPE2 SPEC PARAMETERS
         self.genomescope_qos = "short"
         self.genomescope_time = "1:00:00"
-        self.genomescope_queue = "genD"
+        self.genomescope_queue = "general"
         self.genomescope_mem = "100G"
 
         #INPUT PARAMETERS
@@ -291,9 +291,9 @@ class CreateConfigurationFile(object):
 
         #FILTLONG SPEC PARAMETERS
         self.filtlong_qos = "normal"
-        self.filtlong_time = "10:00:00"
-        self.filtlong_queue = "genD"
-        self.filtlong_mem = "10G"
+        self.filtlong_time = "12:00:00"
+        self.filtlong_queue = "general"
+        self.filtlong_mem = "32G"
 
         #FLYE PARAMETERS
         self.flye_cores = 128	                                                                  #Number of threads to run Flye
@@ -303,8 +303,8 @@ class CreateConfigurationFile(object):
         #FLYE SPEC PARAMETERS
         self.flye_qos = "marathon"
         self.flye_time = "100:00:00"
-        self.flye_queue = "genD"
-        self.flye_mem = "900G"
+        self.flye_queue = "general"
+        self.flye_mem = "950G"
 
         #NEXTDENOVO PARAMETERS
         self.nextdenovo_cores = 2	                                                        #Number of threads to run nextdenovo        
@@ -327,19 +327,19 @@ class CreateConfigurationFile(object):
         #NEXTDENOVO SPEC PARAMETERS
         self.nextdenovo_qos = "eternal"
         self.nextdenovo_time = "480:00:00"
-        self.nextdenovo_queue = "genD"
+        self.nextdenovo_queue = "general"
         self.nextdenovo_mem = "10G"
 
         #MINIMAP2 SPEC PARAMETERS
         self.minimap_qos = "normal"
         self.minimap_time = "12:00:00"
-        self.minimap_queue = "genD"
+        self.minimap_queue = "general"
         self.minimap_mem = "500G"
         
         #BWA SPEC PARAMETERS
         self.bwa_qos = "normal"
         self.bwa_time = "6:00:00"
-        self.bwa_queue = "genD"
+        self.bwa_queue = "general"
         self.bwa_mem = "100G"
 
         #HYPO PARAMETERS
@@ -351,19 +351,19 @@ class CreateConfigurationFile(object):
         #HYPO SPEC PARAMETERS
         self.hypo_qos = "normal"
         self.hypo_time = "6:00:00"
-        self.hypo_queue = "genD"
+        self.hypo_queue = "general"
         self.hypo_mem = "250G"
 
         #NEXTPOLISH LR SPEC PARAMETERS
         self.nextpolish_lr_qos = "normal"
         self.nextpolish_lr_time = "6:00:00"
-        self.nextpolish_lr_queue = "genD"
+        self.nextpolish_lr_queue = "general"
         self.nextpolish_lr_mem = "100G"
         
         #NEXTPOLISH SR SPEC PARAMETERS
         self.nextpolish_sr_qos = "normal"
         self.nextpolish_sr_time = "6:00:00"
-        self.nextpolish_sr_queue = "genD"
+        self.nextpolish_sr_queue = "general"
         self.nextpolish_sr_mem = "200G"
         
         #PURGEDUPS PARAMETERS
@@ -373,7 +373,7 @@ class CreateConfigurationFile(object):
         #PURGEDUPS SPEC PARAMETERS
         self.purgedups_qos = "normal"
         self.purgedups_time = "1:00:00"
-        self.purgedups_queue = "genD"
+        self.purgedups_queue = "general"
         self.purgedups_mem = "200G"
 
         #10X SCAFFOLDING PARAMETERS
@@ -383,7 +383,7 @@ class CreateConfigurationFile(object):
         #10X SCAFFOLDING SPEC PARAMETERS
         self.tigmint_qos = "long"
         self.tigmint_time = "24:00:00"
-        self.tigmint_queue = "genD"
+        self.tigmint_queue = "general"
         self.tigmint_mem = "100G"   
 
         #HiC PARAMETERS
@@ -403,55 +403,55 @@ class CreateConfigurationFile(object):
         #ASSEMBLY PREPARE SPEC PARAMETERS
         self.ass_prepare_qos = "short"
         self.ass_prepare_time = "2:00:00"
-        self.ass_prepare_queue = "genD"
-        self.ass_prepare_mem = "30G"        
+        self.ass_prepare_queue = "general"
+        self.ass_prepare_mem = "32G"        
 
         #MAP HIC SPEC PARAMETERS
         self.map_hic_qos = "normal"
         self.map_hic_time = "12:00:00"
-        self.map_hic_queue = "genD"
+        self.map_hic_queue = "general"
         self.map_hic_mem = "100G"  
 
         #PAIRTOOLS SPEC PARAMETERS
         self.pairtools_qos = "normal"
         self.pairtools_time = "12:00:00"
-        self.pairtools_queue = "genD"
+        self.pairtools_queue = "general"
         self.pairtools_mem = "200G"  
 
         #QCSTATS SPEC PARAMETERS
         self.qcstats_qos = "short"
         self.qcstats_time = "3:00:00"
-        self.qcstats_queue = "genD"
+        self.qcstats_queue = "general"
         self.qcstats_mem = "50G" 
 
         #BLAST SPEC PARAMETERS
         self.blast_qos = "short"
         self.blast_time = "3:00:00"
-        self.blast_queue = "genD"
+        self.blast_queue = "general"
         self.blast_mem = "50G" 
 
         #YAHS SPEC PARAMETERS
         self.yahs_qos = "normal"
         self.yahs_time = "12:00:00"
-        self.yahs_queue = "genD"
+        self.yahs_queue = "general"
         self.yahs_mem = "50G" 
 
         #PRETEXT SPEC PARAMETERS
         self.pretext_qos = "normal"
         self.pretext_time = "10:00:00"
-        self.pretext_queue = "genD"
+        self.pretext_queue = "general"
         self.pretext_mem = "100G" 
 
         #TPF SPEC PARAMETERS
         self.tpf_qos = "short"
         self.tpf_time = "1:00:00"
-        self.tpf_queue = "genD"
+        self.tpf_queue = "general"
         self.tpf_mem = "50G" 
 
         #TELOMERE_EXT SPEC PARAMETERS
         self.telext_qos = "normal"
         self.telext_time = "10:00:00"
-        self.telext_queue = "genD"
+        self.telext_queue = "general"
         self.telext_mem = "100G" 
 
         #FINALIZE PARAMETERS
@@ -464,28 +464,28 @@ class CreateConfigurationFile(object):
         self.meryl_reads = "ont illumina"
 
         #STATS SPEC PARAMETERS
-        self.stats_qos = "test"
-        self.stats_time = "0:10:00"
-        self.stats_queue = "genD"  
-        self.stats_mem = "1G"
+        self.stats_qos = "vshort"
+        self.stats_time = "01:00:00"
+        self.stats_queue = "general"  
+        self.stats_mem = "16G"
         
         #BUSCO SPEC PARAMETERS
         self.busco_qos = "short"
         self.busco_time = "6:00:00"
-        self.busco_queue = "genD"  
+        self.busco_queue = "general"  
         self.busco_mem = "50G"
 
         #MERQURY SPEC PARAMETERS
         self.merq_qos = "normal"
         self.merq_time = "3:00:00"
-        self.merq_queue = "genD"
+        self.merq_queue = "general"
         self.merq_mem = "100G"          
 
         #FINALIZE SPEC PARAMETERS
         self.fin_qos = "short"
         self.fin_time = "2:00:00"
-        self.fin_queue = "genD"
-        self.fin_mem = "1G" 
+        self.fin_queue = "general"
+        self.fin_mem = "5G" 
 
         #WILDCARDS
         self.ONT_wildcards = None

@@ -167,8 +167,9 @@ rule align_hic:
   shell:
     """
     mkdir -p {params.outd};
-    bwa mem {params.options} -t {threads} {input.ass} {input.read1} {input.read2} | samtools view -bS -@ {threads} | \
-    tee {output.mapped} | samtools view -@ {threads} -b -f 4 \
+    #samtools does not require more than 1 thread
+    bwa mem {params.options} -t {threads} {input.ass} {input.read1} {input.read2} | samtools view -bS -@ 1 | \
+    tee {output.mapped} | samtools view -@ 1 -b -f 4 \
     > {output.unmapped}
     """
 
