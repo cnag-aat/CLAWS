@@ -15,13 +15,15 @@ if config["Finalize"]["final Evaluations"] == True:
   for i in inputs:
     assemblies.append(i)
   for i in polished:
-    assemblies.append(i)   
+    assemblies.append(i) 
   for i in postpolish:
     assemblies.append(i)
   for i in assembled:
     assemblies.append(i)
   for i in pretext_in:
-    assemblies.append(i)
+    b=os.path.splitext(i)[0]
+    if not b + ".fasta" in assemblies:
+      assemblies.append(i) 
 
 in_files = {}
 evals_dir = {}
@@ -30,13 +32,17 @@ StatsFiles = []
 MerqurySummaries = []
 MerquryQV = []
 MerquryDups = []
+Merqury_in = []
 lrtype = config["Parameters"]["lr_type"]
 stats_loc = {}
+
+if config["Finalize"]["BUSCO lineage"]:
+  buscodb = os.path.basename(config["Finalize"]["BUSCO lineage"])
 
 for file in assemblies:
   ass_base = os.path.splitext(os.path.basename(file))[0]
   basedirname = os.path.basename(os.path.dirname(file))
-  if basedirname == "hypo" or basedirname == "rmp" or basedirname == "nextpolish":
+  if basedirname == "hypo" or basedirname == "nextpolish":
     basedirname = os.path.basename(os.path.dirname(os.path.dirname(file)))
   evalassdir =  eval_dir + basedirname + "/"
   if not os.path.exists(evalassdir + "logs/"):
@@ -46,25 +52,52 @@ for file in assemblies:
   buscodir = evalassdir + "busco/"
   if not os.path.exists(buscodir) and config["Finalize"]["BUSCO lineage"]:
     os.makedirs(buscodir)
-  merqdir = evalassdir + "merqury/" + ass_base 
-  if not os.path.exists(merqdir) and config["Finalize"]["Merqury db"]:
-    os.makedirs(merqdir)
+
   in_files[evalassdir + ass_base] = file
   evals_dir[evalassdir + ass_base] = evalassdir
-
-  if config["Finalize"]["BUSCO lineage"]:
-    BuscoSummaries.append(buscodir + ass_base + ".short_summary.txt")
-
-  if config["Finalize"]["Merqury db"]:
-    MerqurySummaries.append(merqdir + "/" + ass_base + ".completeness.stats")
-    MerquryQV.append(merqdir + "/" + ass_base + ".qv")
-    MerquryDups.append(merqdir + "/" + ass_base + ".false_duplications.txt")
 
   StatsFiles.append(evalassdir + "stats/" + ass_base + ".stats.txt")
   stats_loc[ass_base] = evalassdir + "stats/" + ass_base + ".gaps.txt"
 
-#1- Perform alignments
+  if config["Finalize"]["BUSCO lineage"]:
+    BuscoSummaries.append(buscodir + ass_base + "." + buscodb + ".short_summary.txt")
 
+  if config["Finalize"]["Merqury db"] and not re.search("hap", file):
+    merqdir = evalassdir + "merqury/" + ass_base 
+    if not os.path.exists(merqdir) and config["Finalize"]["Merqury db"]:
+      os.makedirs(merqdir)
+    MerqurySummaries.append(merqdir + "/" + ass_base + ".completeness.stats")
+    MerquryQV.append(merqdir + "/" + ass_base + ".qv")
+    MerquryDups.append(merqdir + "/" + ass_base + ".false_duplications.txt")
+  elif config["Finalize"]["Merqury db"] and re.search("hap", file):
+    hap_base = ass_base.split(".hap")
+    fullbase = hap_base[0]  
+    if not re.search("purge", file) and not re.search("scffs", file):
+      merqdir = evalassdir + "merqury/" + hap_base[0] + ".haps"
+      if evalassdir + hap_base[0] + ".haps" in in_files and not file in in_files[evalassdir + hap_base[0] + ".haps"]:
+        in_files[evalassdir + hap_base[0] + ".haps"].append(file)
+      elif not evalassdir + hap_base[0] + ".haps" in in_files:
+        in_files[evalassdir + hap_base[0] + ".haps"] = [file]
+    else:
+      hap_end = hap_base[1].split(".")
+      for i in range(1, len(hap_end)):
+        fullbase+= "." + hap_end[i]
+      step_dir = os.path.basename(evalassdir.rstrip("/"))
+      hap_step = step_dir.split(".")
+      tmp_step = hap_step[1].split("_")
+      merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps/merqury/" + fullbase + ".haps"
+      ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps"
+      if not os.path.exists(ev_dir + "/logs/"):
+        os.makedirs(ev_dir + "/logs/")
+      if ev_dir + "/" + fullbase + ".haps" in in_files and not file in in_files[ev_dir + "/" + fullbase + ".haps"]:
+        in_files[ev_dir + "/" + fullbase + ".haps"].append(file)
+      elif not ev_dir + "/" + fullbase + ".haps" in in_files:
+        in_files[ev_dir+ "/" + fullbase + ".haps"] = [file]
+    MerqurySummaries.append(merqdir + "/" + fullbase + ".haps.completeness.stats")
+    MerquryQV.append(merqdir + "/" + fullbase + ".haps.qv")
+    MerquryDups.append(merqdir + "/" + fullbase +  ".haps.false_duplications.txt")
+
+#1- Perform alignments
 if len(bwa) > 0:
   use rule align_illumina from eval_workflow with:
     input:
@@ -86,7 +119,7 @@ if len(bwa) > 0:
     threads: config["Parameters"]["BWA_cores"]
 
 if len(minimap2) > 0:
-  use rule align_ont from eval_workflow with:
+  use rule align_lr from eval_workflow with:
     input:
       genome = lambda wildcards: minimap2[wildcards.name],
       reads = lambda wildcards: ont_reads if wildcards.ext == "minimap2.allreads.paf.gz" else ONT_filtered,
@@ -95,12 +128,12 @@ if len(minimap2) > 0:
     params:
       align_opts = lambda wildcards:"ax" if wildcards.ext == "minimap2.bam" else "x",
       type = lambda wildcards:"map-ont" if lrtype == "nano-raw" else "map-hifi",
-      tmp = "{directory}/mappings/{name}_{ext}.tmp",
-      compress_cmd = lambda wildcards : "samtools view -Sb " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext + ".tmp | " \
-                     "samtools sort -@ " + str(config["Parameters"]["minimap2_cores"]) +" -o " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext +";" +\
-                     "samtools index " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext  \
+      # tmp = "{directory}/mappings/{name}_{ext}.tmp",
+      split = "" if gsize < 4000 else " --split-prefix {name}_tmp ",
+      compress_cmd = lambda wildcards : "samtools sort -@ " + str(config["Parameters"]["minimap2_cores"]) +" -o " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext +";" +\
+                     "samtools index -c " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext  \
                      if wildcards.ext == "minimap2.bam" else \
-                     "gzip -c " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext + ".tmp > " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext         
+                     "gzip -c > " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext         
     wildcard_constraints:
       ext = "minimap2.(.+)"
     log:
@@ -117,7 +150,7 @@ if len(hic_assemblies) > 0:
   use rule align_hic from eval_workflow with:
     input:
         ass = lambda wildcards: hic_assemblies[wildcards.name],
-        bwt = lambda wildcards: hic_assemblies[wildcards.name] + ".bwt",
+        bwt = lambda wildcards: hic_assemblies[wildcards.name] + ".bwt.2bit.64",
         read1 = hic_pe1,
         read2 = hic_pe2
     output:
@@ -153,7 +186,7 @@ if len(hic_assemblies) > 0:
       "{directory}/logs/" + str(date) + ".j%j.rule_pairtools_parse.mq{mq}.{name}.err"
     benchmark:
       "{directory}/logs/" + str(date) + ".rule_pairtools_parse.benchmark.mq{mq}.{name}.txt"
-    threads: config['Parameters']['pairtools_cores']
+    threads: config['Parameters']['pairtools_parse_cores']
 
   use rule pairtools_processing_sort from eval_workflow with:
     input: 
@@ -173,7 +206,7 @@ if len(hic_assemblies) > 0:
       "{directory}/logs/" + str(date) + ".j%j.rule_pairtools_sort.mq{mq}.{name}.err"
     benchmark:
       "{directory}/logs/" + str(date) + ".rule_pairtools_sort.benchmark.mq{mq}.{name}.txt"
-    threads: config['Parameters']['pairtools_cores']
+    threads: config['Parameters']['pairtools_sort_cores']
 
   use rule pairtools_processing_dedup from eval_workflow with:
     input: 
@@ -194,7 +227,7 @@ if len(hic_assemblies) > 0:
       "{directory}/logs/" + str(date) + ".j%j.rule_pairtools_dedup.mq{mq}.{name}.err"
     benchmark:
       "{directory}/logs/" + str(date) + ".rule_pairtools_dedup.benchmark.mq{mq}.{name}.txt"
-    threads: config['Parameters']['pairtools_cores']
+    threads: config['Parameters']['pairtools_dedup_cores']
 
   use rule pairtools_processing_split from eval_workflow with:
     input: 
@@ -217,7 +250,7 @@ if len(hic_assemblies) > 0:
       "{directory}/logs/" + str(date) + ".j%j.rule_pairtools_split.mq{mq}.{name}.err"
     benchmark:
       "{directory}/logs/" + str(date) + ".rule_pairtools_split.benchmark.mq{mq}.{name}.txt"
-    threads: config['Parameters']['pairtools_cores']
+    threads: config['Parameters']['pairtools_split_cores']
 
   use rule qc_statistics from eval_workflow with: 
     input:
@@ -342,11 +375,11 @@ if config["Finalize"]["BUSCO lineage"] != None:
       assembly = lambda wildcards: in_files[eval_dir + wildcards.dir + "/" + wildcards.buscobase],
       lineage = config["Finalize"]["BUSCO lineage"]
     output:
-      summary = report(eval_dir + "{dir}/busco/{buscobase}.short_summary.txt",
+      summary = report(eval_dir + "{dir}/busco/{buscobase}.{buscodb}.short_summary.txt",
                 caption="../report/busco.rst",
                 category = "Evaluate assemblies",
                 subcategory = "{dir}"),
-      full = eval_dir + "{dir}/busco/{buscobase}.full_table.tsv",
+      full = eval_dir + "{dir}/busco/{buscobase}.{buscodb}.full_table.tsv",
     params:
       out_path = lambda wildcards: evals_dir[eval_dir + wildcards.dir +"/" + wildcards.buscobase],
       odb = os.path.basename(config["Finalize"]["BUSCO lineage"]),
@@ -355,37 +388,38 @@ if config["Finalize"]["BUSCO lineage"] != None:
              evals_dir[eval_dir + wildcards.dir +"/" + wildcards.buscobase] + wildcards.buscobase + ";" \
              if keepfiles == False else "" 
     log:
-      eval_dir + "{dir}/logs/" + str(date) + ".j%j.busco.{buscobase}.out",
-      eval_dir + "{dir}/logs/" + str(date) + ".j%j.busco.{buscobase}.err",
+      eval_dir + "{dir}/logs/" + str(date) + ".j%j.busco.{buscobase}.{buscodb}.out",
+      eval_dir + "{dir}/logs/" + str(date) + ".j%j.busco.{buscobase}.{buscodb}.err",
     benchmark:
-      eval_dir + "{dir}/logs/" + str(date) + ".busco.{buscobase}.benchmark.txt"
+      eval_dir + "{dir}/logs/" + str(date) + ".busco.{buscobase}.{buscodb}.benchmark.txt"
     conda:
-      '../envs/busco5.4.0.yaml'
+      '../envs/busco5.5.0.yaml'
     threads: config["Parameters"]["busco_cores"]
 
 if  config["Finalize"]["Merqury db"] != None:
+
   use rule run_merqury from eval_workflow with:
     input:
       meryl_db = config["Finalize"]["Merqury db"],
       assembly = lambda wildcards: in_files[eval_dir + wildcards.dir +"/" + wildcards.merqbase],
     output:
       completeness = report (eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.completeness.stats",
-                     caption="../report/merqury.rst",
+                    caption="../report/merqury.rst",
                      category = "Evaluate assemblies",
                      subcategory = "{dir}"),
       qv = report(eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.qv",
            caption="../report/merqury.rst",
            category = "Evaluate assemblies",
            subcategory = "{dir}"),
-      hist = eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.{merqbase}.spectra-cn.hist",
-      false_dups = report(eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.false_duplications.txt",
-           caption="../report/merqury.rst",
-           category = "Evaluate assemblies",
-           subcategory = "{dir}"),
+      hist = eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.spectra-cn.hist",
       plots = report ([eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.spectra-cn.ln.png", eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.spectra-cn.fl.png", eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.spectra-cn.st.png"],
               caption="../report/merqury.rst",
               category = "Evaluate assemblies",
               subcategory = "{dir}"),
+      false_dups = report(eval_dir + "{dir}/merqury/{merqbase}/{merqbase}.false_duplications.txt",
+           caption="../report/merqury.rst",
+           category = "Evaluate assemblies",
+           subcategory = "{dir}"),
     params:
       out_pref = "{merqbase}",
       directory= eval_dir + "{dir}/merqury/{merqbase}",

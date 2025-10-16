@@ -25,6 +25,7 @@ rule finalize:
     "{params.scripts_dir}get_final_tbl_mult.py -s {input.stats} -b {input.buscos} -m {input.merqs} > {output.output};"
     "{params.rmcmd}"
     "echo 'Pipeline completed';"
+    "sleep 4m"
 
 # rule get_report:
 #   input:
@@ -59,13 +60,15 @@ rule get_stats:
   shell:
     "{params.scripts_dir}fastalength {input.assembly} | {params.scripts_dir}Nseries.pl > {output.nseries};"
     "{params.scripts_dir}fasta-stats.py -f {input.assembly} -s {output.stats} -r {output.gaps};"
+    "sleep 4m"
 
 rule run_merqury:
   input:
     meryl_db = os.getcwd() + "/database.meryl",
-    assembly = os.getcwd() + "/assembly.fasta"
+    assembly = [os.getcwd() + "/assembly.fasta"]
   output:
     completeness = os.getcwd() + "/merqury_run/assembly.completeness.stats",
+    qv= os.getcwd() + "/merqury_run/assembly.qv",
     hist = os.getcwd() + "/merqury_run/assembly.assembly.spectra-cn.hist",
     false_dups = os.getcwd() + "/merqury_run/assembly.false_duplications.txt",
     plots = [os.getcwd() + "/merqury_run/assembly.spectra-cn.ln.png", os.getcwd() + "/merqury_run/assembly.spectra-cn.fl.png", os.getcwd() + "/merqury_run/assembly.spectra-cn.st.png"]
@@ -82,8 +85,9 @@ rule run_merqury:
   shell:
     "mkdir -p {params.directory}; cd {params.directory};"
     "merqury.sh {input.meryl_db} {input.assembly} {params.out_pref};"
-    "$CONDA_PREFIX/share/merqury/plot/plot_spectra_cn.R -f {output.hist} -o {params.out_pref}.spectra-cn -z {params.out_pref}.{params.out_pref}.only.hist {params.additional_plot_opts};"
+    "if [ ! -f {output.hist} ]; then ln -s *{params.out_pref}.spectra-cn.hist {output.hist}; ln -s *{params.out_pref}.spectra-cn.ln.png {output.plots[0]}; ln -s *{params.out_pref}.spectra-cn.fl.png {output.plots[1]};  ln -s *{params.out_pref}.spectra-cn.st.png {output.plots[2]};  fi;"
     "$CONDA_PREFIX/share/merqury/eval/false_duplications.sh {output.hist} > {output.false_dups};"
+    "for i in {input.assembly}; do b=`basename $i \".fa\"`;$CONDA_PREFIX/share/merqury/eval/false_duplications.sh {params.directory}/{params.out_pref}.$b.spectra-cn.hist > {params.directory}/$b.false_duplications.txt; done"
 
 rule run_busco:
   input:
@@ -99,7 +103,7 @@ rule run_busco:
     rmcmd = "echo 'Removing BUSCO run dir: busco'; \
             rm -r busco;" if keepfiles == True else "" 
   conda:
-    '../envs/busco5.4.0.yaml'
+    '../envs/busco5.5.0.yaml'
   threads: 8
   shell:
     "cd {params.out_path};" 
@@ -108,27 +112,23 @@ rule run_busco:
     "mv {params.out_path}{params.buscobase}/run_{params.odb}/full_table.tsv {output.full};"
     "{params.rmcmd}"
   
-rule align_ont:
+rule align_lr:
   input:
     genome = os.getcwd() + "/assembly.fasta",
     reads = os.getcwd() + "/reads.ont.fastq.gz"
   output:
     mapping = "minimap2.bam"
   params:
-   # align_opts = "ax map-ont",
     align_opts = "ax",
     type = "map-ont",
-    tmp = "minimap2.sam",
-    compress_cmd = lambda wildcards : "samtools view -Sb " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext + ".tmp | " \
-                   "samtools sort -@ " + str(config["Parameters"]["minimap2_cores"]) +" -o " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext +";" +\
-                   "samtools index " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext 
+    split = "",
+    compress_cmd = lambda wildcards: "samtools sort -@ " + str(config["Parameters"]["minimap2_cores"]) +" -o " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext +";" +\
+                   "samtools index -c " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext 
   conda:
     "../envs/minimap2.24.yaml"
   threads: 4
   shell:
-    "minimap2 -{params.align_opts} {params.type} -t {threads} {input.genome} {input.reads} > {params.tmp};"
-    "{params.compress_cmd};"
-    "rm {params.tmp};"
+    "minimap2 -{params.align_opts} {params.type}  {params.split} -t {threads} {input.genome} {input.reads} | {params.compress_cmd};"
 
 rule align_illumina:
   input:
@@ -145,13 +145,13 @@ rule align_illumina:
   shell:
     "bwa-mem2 index {input.genome};"
     "bwa-mem2 mem -Y {params.options} -t {threads} {input.genome} {input.reads} | samtools view -Sb - | samtools sort -@ {threads} -o {output.mapping} -;"
-    "samtools index {output.mapping};"
+    "samtools index -c {output.mapping};"
     "samtools stats -@ {threads} {output.mapping} > {output.stats};"
 
 rule align_hic:
   input:
     ass = "assembly.fa",
-    bwt = "assembly.fa.bwt",
+    bwt = "assembly.fa.bwt.2bit.64",
     read1 = "HiC.R1.fastq.gz",
     read2 = "HiC.R2.fastq.gz"
   output:
@@ -161,14 +161,13 @@ rule align_hic:
     outd = "mappings",
     name = "assembly",
     options = "-5SP -T0"
-
   conda:
-    "../envs/dovetail_tools.yaml"
+    "../envs/bwa-mem2.2.1.yaml"
   shell:
     """
     mkdir -p {params.outd};
     #samtools does not require more than 1 thread
-    bwa mem {params.options} -t {threads} {input.ass} {input.read1} {input.read2} | samtools view -bS -@ 1 | \
+    bwa-mem2 mem {params.options} -t {threads} {input.ass} {input.read1} {input.read2} | samtools view -bS -@ 1 - | \
     tee {output.mapped} | samtools view -@ 1 -b -f 4 \
     > {output.unmapped}
     """
@@ -214,7 +213,7 @@ rule pairtools_processing:
     samtools view -bS -@ {threads} {params.tmpd}/mapped.PT.mq{params.mq}.{params.name}.sam | samtools sort -@ {threads} \
     -o {output.mappedpt}; 
 
-    samtools index -@ {threads} {output.mappedpt};
+    samtools index -c -@ {threads} {output.mappedpt};
 
     samtools sort -n -@ {threads} {output.mappedpt} -o {output.mappedptsort}
 
@@ -241,9 +240,9 @@ rule pairtools_processing_parse:
     export PATH="{params.scripts_dir}:$PATH";
     mkdir -p {params.tmpd};
     mkdir -p {params.outd};
-
-    samtools view -h -@ {threads} {input.mapped} | \
-    pairtools parse --min-mapq {params.mq} --walks-policy 5unique --max-inter-align-gap 30 --nproc-in {threads} --nproc-out {threads} \
+    threads_half=$(({threads}/2));
+    samtools view -h -@ 1 {input.mapped} | \
+    pairtools parse --min-mapq {params.mq} --walks-policy 5unique --max-inter-align-gap 30 --nproc-in $threads_half --nproc-out $threads_half \
     --chroms-path {input.alength} -o {output.psamo};
 
     """
@@ -286,8 +285,8 @@ rule pairtools_processing_dedup:
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH";
-
-    pairtools dedup --nproc-in {threads} --nproc-out {threads} --mark-dups \
+    threads_half=$(({threads}/2));
+    pairtools dedup --nproc-in $threads_half --nproc-out $threads_half --mark-dups \
     --output-stats {output.stats} \
     --output {output.spsamdedup} {input.spsamo}
  
@@ -310,15 +309,15 @@ rule pairtools_processing_split:
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH";
-
-    pairtools split --nproc-in {threads} --nproc-out {threads} {input.spsamdedup} \
+    threads_half=$(({threads}/2));
+    pairtools split --nproc-in $threads_half --nproc-out $threads_half {input.spsamdedup} \
     --output-pairs {params.outd}/mapped.mq{params.mq}.{params.name}.pairs \
     --output-sam {params.tmpd}/mapped.PT.mq{params.mq}.{params.name}.sam 
     
-    samtools view -bS -@ {threads} {params.tmpd}/mapped.PT.mq{params.mq}.{params.name}.sam | samtools sort -@ {threads} \
+    samtools view -bS {params.tmpd}/mapped.PT.mq{params.mq}.{params.name}.sam | samtools sort -@ {threads} \
     -o {output.mappedpt}; 
 
-    samtools index -@ {threads} {output.mappedpt};
+    samtools index -c -@ {threads} {output.mappedpt};
 
     samtools sort -n -@ {threads} {output.mappedpt} -o {output.mappedptsort}
 

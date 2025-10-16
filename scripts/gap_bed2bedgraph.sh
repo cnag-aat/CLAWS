@@ -10,4 +10,4 @@
 # Dependencies
 
 
-gawk '{print $1"\t"$2"\t"$3"\t"($3-$2)*5}'
+gawk '{print $1"\t"$2"\t"$3"\t100"}'

@@ -21,12 +21,20 @@ keepfiles = config["Parameters"]["keep_intermediate"]
 base = config["Parameters"]["base_name"]
 eval_dir = config["Outputs"]["eval_dir"]
 
+
+if re.search("m", config["Parameters"]["genome_size"]):
+  gsize = float(re.split("m", config["Parameters"]["genome_size"])[0])
+elif re.search("g",  config["Parameters"]["genome_size"] ):
+  gsize = float(re.split("g", config["Parameters"]["genome_size"])[0]) * 1000
+
 ##0. Define path for files and variables
 
 flye_dir = config["Outputs"]["flye_dir"]
 nextdenovo_dir = config["Outputs"]["nextdenovo_dir"]
+hifiasm_dir = config["Outputs"]["hifiasm_dir"]
 flye_assembly = config["Outputs"]["flye_out"]
 nextdenovo_assembly = config["Outputs"]["nextdenovo_out"]
+hifiasm_assemblies = config["Outputs"]["hifiasm_out"]
 
 targets = []
 
@@ -43,10 +51,11 @@ if config["Finalize"]["Merqury db"]:
   merqury_db = config["Finalize"]["Merqury db"]
   genomescope_dir = os.path.dirname(merqury_db) + "/genomescope2_k" + str(config["Finalize"]["Meryl K"]),
   targets.append(genomescope_dir)
-  smudgeplot_dir = os.path.dirname(merqury_db) + "/smudgeplot_k" + str(config["Finalize"]["Meryl K"])
-  targets.append(os.path.dirname(merqury_db) + "/smudgeplot_k" + str(config["Finalize"]["Meryl K"]) + "/smudgeplot_smudgeplot.png")
+  if config["Parameters"]["run_smudgeplot"]:
+    smudgeplot_dir = os.path.dirname(merqury_db) + "/smudgeplot_k" + str(config["Finalize"]["Meryl K"])
+    targets.append(os.path.dirname(merqury_db) + "/smudgeplot_k" + str(config["Finalize"]["Meryl K"]) + "/smudgeplot_smudgeplot.png")
 
-if config["Parameters"]["run_flye"] == True or config["Parameters"]["run_nextdenovo"] == True:
+if config["Parameters"]["run_flye"] == True or config["Parameters"]["run_nextdenovo"] == True or config["Parameters"]["run_hifiasm"] == True:
   ONT_filtered = config["Inputs"]["ONT_filtered"]
   nanostats_dir = os.path.dirname(ONT_filtered)
   targets.append(nanostats_dir + "/nanostats/filtered_ont/NanoStats.txt")
@@ -65,6 +74,10 @@ if config["Parameters"]["run_flye"] == True or config["Parameters"]["run_nextden
     targets.append(nextdenovo_assembly)
     if not os.path.exists(nextdenovo_dir + "logs"):
       os.makedirs(nextdenovo_dir + "logs")
+  if config["Parameters"]["run_hifiasm"] == True:
+    targets.append(hifiasm_assemblies)
+    if not os.path.exists(hifiasm_dir + "logs"):
+      os.makedirs(hifiasm_dir + "logs") 
 
 if config['Inputs']['HiC_dir']:
   if config['HiC']['deepseq'] == False and config['HiC']['assembly_qc']:

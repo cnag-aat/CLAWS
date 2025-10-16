@@ -215,7 +215,7 @@ if config["Inputs"]["processed_illumina"] != None and config["Inputs"]["illumina
     benchmark:
       os.path.dirname(os.path.dirname(illumina_processed)) + "/logs/" + str(date) + ".{file}.trim_galore.benchmark.txt"
     conda:
-      "../envs/trim_galore0.6.7.yaml"
+      "../envs/trim_galore0.6.10.yaml"
     threads: config["Trim_Galore"]["Trim_Illumina_cores"]
 
 if len(fastqs) > 0:
@@ -274,56 +274,57 @@ if len(longranger_inputs) > 0:
       r10X_dir + "logs/" + str(date) + ".longranger.{bname}.benchmark.txt",
     threads: config["Parameters"]["longranger_cores"] 
 
-if config["Finalize"]["Merqury db"] and not os.path.exists(config["Finalize"]["Merqury db"]):
-  use rule build_meryl_db from preprocess_workflow with:
-    input:
-      fastq = lambda wildcards: reads_loc[wildcards.db]
-    output:
-      out_dir = directory(meryl_loc + "{db}.meryl")  
-    params:
-      kmer = config["Finalize"]["Meryl K"],
-    log:
-      logs_dir + str(date) + ".j%j.build_meryl.{db}.out",
-      logs_dir + str(date) + ".j%j.build_meryl.{db}.err" 
-    benchmark:
-      logs_dir + str(date) + ".build_meryl.{db}.benchmark.txt"
-    conda:
-      "../envs/merqury1.3.yaml"
-    threads:
-      config["Finalize"]["Meryl threads"]
-
-  use rule concat_meryl from preprocess_workflow with:
-    input:
-      input_run = lambda wildcards: expand(rules.build_meryl_db.output.out_dir, db=meryl_dbs)
-    output:
-      meryl_all = directory(config["Finalize"]["Merqury db"]),
-      histogram = os.path.dirname(config["Finalize"]["Merqury db"]) + "/meryl.hist"
-    params:
-      kmer = config["Finalize"]["Meryl K"],
-    log:
-      logs_dir + str(date) + ".j%j.concat_meryl.out",
-      logs_dir + str(date) + ".j%j.concat_meryl.err" 
-    benchmark:
-      logs_dir + str(date) + ".concat_meryl.benchmark.txt" 
-    threads:
-      config["Finalize"]["Meryl threads"]
-
 if config["Finalize"]["Merqury db"]:
-  use rule smudgeplot from preprocess_workflow with:
-    input:
-      histogram = os.path.dirname(config["Finalize"]["Merqury db"]) + "/meryl.hist",
-      meryl = config["Finalize"]["Merqury db"],
-    output:
-      plot = smudgeplot_dir + "/smudgeplot_smudgeplot.png"
-    params:
-      dir = smudgeplot_dir
-    conda:
-      "../envs/merqury1.3.yaml"
-    log:
-      logs_dir + str(date) + ".j%j.smudgeplot.out",
-      logs_dir + str(date) + ".j%j.smudgeplot.err" 
-    benchmark:
-      logs_dir + str(date) + ".smudgeplot.benchmark.txt"  
+  if not os.path.exists(config["Finalize"]["Merqury db"]):
+    use rule build_meryl_db from preprocess_workflow with:
+      input:
+        fastq = lambda wildcards: reads_loc[wildcards.db]
+      output:
+        out_dir = directory(meryl_loc + "{db}.meryl")  
+      params:
+        kmer = config["Finalize"]["Meryl K"],
+      log:
+        logs_dir + str(date) + ".j%j.build_meryl.{db}.out",
+        logs_dir + str(date) + ".j%j.build_meryl.{db}.err" 
+      benchmark:
+        logs_dir + str(date) + ".build_meryl.{db}.benchmark.txt"
+      conda:
+        "../envs/merqury1.3.yaml"
+      threads:
+        config["Finalize"]["Meryl threads"]
+
+    use rule concat_meryl from preprocess_workflow with:
+      input:
+        input_run = lambda wildcards: expand(rules.build_meryl_db.output.out_dir, db=meryl_dbs)
+      output:
+        meryl_all = directory(config["Finalize"]["Merqury db"]),
+        histogram = os.path.dirname(config["Finalize"]["Merqury db"]) + "/meryl.hist"
+      params:
+        kmer = config["Finalize"]["Meryl K"],
+      log:
+        logs_dir + str(date) + ".j%j.concat_meryl.out",
+        logs_dir + str(date) + ".j%j.concat_meryl.err" 
+      benchmark:
+        logs_dir + str(date) + ".concat_meryl.benchmark.txt" 
+      threads:
+        config["Finalize"]["Meryl threads"]
+
+  if config["Parameters"]["run_smudgeplot"]:
+    use rule smudgeplot from preprocess_workflow with:
+      input:
+        histogram = os.path.dirname(config["Finalize"]["Merqury db"]) + "/meryl.hist",
+        meryl = config["Finalize"]["Merqury db"],
+      output:
+        plot = smudgeplot_dir + "/smudgeplot_smudgeplot.png"
+      params:
+        dir = smudgeplot_dir
+      conda:
+        "../envs/merqury1.3.yaml"
+      log:
+        logs_dir + str(date) + ".j%j.smudgeplot.out",
+        logs_dir + str(date) + ".j%j.smudgeplot.err" 
+      benchmark:
+        logs_dir + str(date) + ".smudgeplot.benchmark.txt"  
 
   use rule genomescope2 from preprocess_workflow with:
     input:

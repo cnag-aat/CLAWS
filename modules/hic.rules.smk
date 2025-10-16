@@ -8,19 +8,19 @@ rule assembly_prepare:
    "assembly_in.fa"
   output:
     glen = "assembly.genome",
-    bwa = "assembly.bwt",
+    bwa = "assembly.bwt.2bit.64",
     faidx = "assembly.fai"   
   params:
     scripts_dir = "../scripts/",  
     workdir = "assembly/",
   conda:
-    "../envs/dovetail_tools.yaml"
+    "../envs/bwa-mem2.2.1.yaml"
   shell:
     """
     export PATH="{params.scripts}:$PATH";
     cd {params.workdir}/; 
     fastalength {input} | gawk '{{print $2"\t"$1}}' > {output.glen};
-    bwa index {input}; 
+    bwa-mem2 index {input}; 
     samtools faidx {input};
     """
 
@@ -59,6 +59,7 @@ rule generate_pretext:
     outd = "s06.1_p05.1_HiC_scaffolding",
     name = "assembly",
     mq = 40,
+    sort = " nosort"
   conda:
     "../envs/pretext-suite0.0.2_plus_samtools1.6.yaml"
   shell:
@@ -68,7 +69,7 @@ rule generate_pretext:
     cd {params.outd}/
 
     samtools view -@ {threads} -h {input.mapbam} | PretextMap -o {output.pret} \
-    --sortby length --sortorder descend --mapq {params.mq}
+    --sortby {params.sort} --sortorder descend --mapq {params.mq}
 
     PretextSnapshot -m {output.pret}  --sequences "=full" \
     -o snapshots/three_wave_blue_green_yellow
@@ -77,6 +78,8 @@ rule generate_pretext:
     -o snapshots/three_wave_blue_green_yellow
 
     touch {output.ptd}    
+
+    sleep 4m
     """
 
 rule add_extensions_pretext:
@@ -110,6 +113,8 @@ rule add_extensions_pretext:
     if [[ -s "{input.ontcov}" ]]; then
     cat {input.ontcov} | PretextGraph -i {output.pretext} -n "ONTcov" 
     fi
+
+    sleep 4m
     """
 
 rule get_tpf:
@@ -126,6 +131,7 @@ rule get_tpf:
     "mkdir -p {params.dir}/run_yahs; cd {params.dir}/run_yahs;"
     "{params.scripts_dir}rapid_split.pl -fa yahs.out_scaffolds_final.fa;"
     "ln -s run_yahs/yahs.out_scaffolds_final.fa.tpf {output.tpf};"
+    "sleep 4m"
 
 
 

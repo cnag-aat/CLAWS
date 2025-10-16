@@ -16,7 +16,7 @@ rule trim_galore:
     opts = "--gzip -q 20 --paired --retain_unpaired",
   threads: 4
   conda:
-    "../envs/trim_galore0.6.7.yaml"
+    "../envs/trim_galore0.6.10.yaml"
   shell:
     "mkdir -p {params.outdir};"
     "cd {params.outdir}; "

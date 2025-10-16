@@ -20,9 +20,10 @@ assembled = []
 
 flye_dir = config["Outputs"]["flye_dir"]
 nextdenovo_dir = config["Outputs"]["nextdenovo_dir"]
+hifiasm_dir = config["Outputs"]["hifiasm_dir"]
 flye_assembly = config["Outputs"]["flye_out"]
 nextdenovo_assembly = config["Outputs"]["nextdenovo_out"]
-
+hifiasm_assemblies = config["Outputs"]["hifiasm_out"]
 
 ONT_filtered = config["Inputs"]["ONT_filtered"] 
 
@@ -34,10 +35,11 @@ if config["Parameters"]["run_flye"] == True:
       reads = ONT_filtered,
     output:
       assembly = flye_assembly,
-      gfa = report(flye_dir + "assembly_graph.gfa.png",
+      gfa_plot = report(flye_dir + "assembly_graph.gfa.png",
             caption="../report/flye.rst",
             category = "Evaluate assemblies",
-            subcategory = flye_dir)
+            subcategory = flye_dir),
+      gfa = flye_dir + "assembly_graph.gfa"
     params:
       outdir = flye_dir,
       readtype = config["Parameters"]["lr_type"],
@@ -49,24 +51,58 @@ if config["Parameters"]["run_flye"] == True:
     benchmark:
       flye_dir + "logs/" + str(date) + ".flye.benchmark.txt",
     conda:
-      '../envs/flye2.9.1.yaml'
+      '../envs/flye2.9.5.yaml'
     threads: config["Flye"]["Flye cores"]
 
 if config["Parameters"]["run_nextdenovo"] == True:
- assembled.append(nextdenovo_assembly)
- use rule nextdenovo from assembly_workflow with:
-  input:
-    reads = ONT_filtered
-  output:
-    assembly = nextdenovo_assembly
-  params:
-    outdir = nextdenovo_dir,
-    config = config["Parameters"]["ndconfFile"]
-  log:
-    nextdenovo_dir + "logs/" + str(date) + ".j%j.nextdenovo.out",
-    nextdenovo_dir + "logs/" + str(date) + ".j%j.nextdenovo.err"
-  benchmark:
-    nextdenovo_dir + "logs/" + str(date) + ".j%j.nextdenovo.benchmark.txt"
-  envmodules:
-    "NextDenovo/2.5.0"
-  threads: config["Nextdenovo"]["Nextdenovo cores"]
+  assembled.append(nextdenovo_assembly)
+  use rule nextdenovo from assembly_workflow with:
+    input:
+      reads = ONT_filtered
+    output:
+      assembly = nextdenovo_assembly
+    params:
+      outdir = nextdenovo_dir,
+      config = config["Parameters"]["ndconfFile"]
+    log:
+      nextdenovo_dir + "logs/" + str(date) + ".j%j.nextdenovo.out",
+      nextdenovo_dir + "logs/" + str(date) + ".j%j.nextdenovo.err"
+    benchmark:
+      nextdenovo_dir + "logs/" + str(date) + ".j%j.nextdenovo.benchmark.txt"
+    envmodules:
+      "NextDenovo/2.5.0"
+    threads: config["Nextdenovo"]["Nextdenovo cores"]
+
+if config["Parameters"]["run_hifiasm"] == True:
+  gfas = []
+  gfa_plots = []
+  for i in hifiasm_assemblies:
+    assembled.append(i)
+    gfas.append(hifiasm_dir + os.path.splitext(os.path.basename(i))[0] + ".gfa")
+    gfa_plots.append(hifiasm_dir + os.path.splitext(os.path.basename(i))[0] + ".gfa.png")
+
+  use rule hifiasm from assembly_workflow with:
+    input:
+      reads = ONT_filtered,
+      h1 = hic_pe1 if config["Hifiasm"]["phase"] == True
+           else [],
+      h2 = hic_pe2 if config["Hifiasm"]["phase"] == True
+           else []
+    output:
+      fastas = hifiasm_assemblies,
+      gfas = gfas,
+      gfa_plots = gfa_plots
+    params:
+      outdir = hifiasm_dir,
+      out_base = "hfsm.asm",
+      phase = " --h1 " + hic_pe1 + " --h2 " + hic_pe2 if config["Hifiasm"]["phase"] == True
+           else "",
+      other_hfsm_opts = config["Hifiasm"]["options"] ,
+    log:
+      hifiasm_dir + "logs/" + str(date) + ".j%j.hifiasm.out",
+      hifiasm_dir + "logs/" + str(date) + ".j%j.hifiasm.err"
+    benchmark:
+      hifiasm_dir + "logs/" + str(date) + ".hifiasm.benchmark.txt",
+    conda:
+      '../envs/hifiasm0.24.0-r702.yaml'
+    threads: config["Hifiasm"]["Hifiasm cores"]

@@ -160,7 +160,9 @@ class CreateConfigurationFile(object):
         self.preprocess_hic_step = "02.3"
         self.flye_step = "03.1"                                                                   #Step direcotory for running flye
         self.nextdenovo_step = "03.2"                                                             #Step direcotory for running nextdenovo
+        self.hifiasm_step = "03.3"                                                                #Step direcotory for running hifiasm
         self.run_flye = True       
+        self.run_hifiasm = True
         self.run_nextdenovo = False   
         self.nextpolish_ont_rounds = 0                                                            #Number of rounds for running Nexpolish with ONT
         self.nextpolish_ill_rounds = 0                                                            #Number of rounds for running Nexpolish with illumina
@@ -171,14 +173,18 @@ class CreateConfigurationFile(object):
         self.bwa_cores = 16                                                                       #Number of threads to run the alignment for the nextpolish step
         self.nextpolish_cores = 24                                                                #Number of threads to run the nextpolish step
         self.hypo_cores = 24                                                                      #Number of threads to tun the hypo step
-        self.pairtools_cores = 100
+        self.pairtools_parse_cores = 32
+        self.pairtools_sort_cores = 16
+        self.pairtools_dedup_cores = 8
+        self.pairtools_split_cores = 16
         self.busco_cores = 32                                                                     #Number of threads to tun the BUSCO    
         self.longranger_cores = 16                                                                 #Number of threads to run longranger   
         self.longranger_path = "/scratch/project/devel/aateam/src/10X/longranger-2.2.2" 
-        self.genomescope_additional = " -m 10000 "  
+        self.genomescope_additional = " -m -1 "  
         self.ploidy = 2
         self.run_kraken2 = False
         self.run_yahs = True
+        self.run_smudgeplot = True
 
         #ALL SPEC PARAMETERS
         self.all_qos = "test"
@@ -264,7 +270,7 @@ class CreateConfigurationFile(object):
         self.assembly_in = {}                                                                     #List of input assemblies that need to be polished but are not assembled by the pipeline
         self.assemblies = {}
         self.postpolish_assemblies = {}                                                           #List of input assemblies for which postpolishing steps need to be run but are not produced by the pipeline
-        self.assemblies_cur = {}
+        # self.yahs_assemblies = {}
         self.final_assemblies = {}
         self.curated_assemblies = {}
         self.r10X_reads = {}
@@ -276,8 +282,10 @@ class CreateConfigurationFile(object):
         self.concat_hic_dir = "s" + self.preprocess_hic_step + "_p01.1_Concat_HiC"
         self.flye_dir = "s" + self.flye_step + "_p" + self.preprocess_ont_step + "_flye/"         #Directory to run flye 
         self.nextdenovo_dir =  "s" + self.nextdenovo_step + "_p" + self.preprocess_ont_step + "_nextdenovo/"         #Directory to run Nextdenovo 
-        self.flye_out = self.flye_dir + "flye.assembly.fasta"
-        self.nextdenovo_out = self.nextdenovo_dir + "nextdenovo.asssembly.fasta"
+        self.hifiasm_dir = "s" + self.hifiasm_step + "_p" + self.preprocess_ont_step + "_hifiasm/"         #Directory to run hifiasm 
+        self.flye_out = self.flye_dir + "fl.asm.fasta"
+        self.nextdenovo_out = self.nextdenovo_dir + "nd.asm.fasta"
+        self.hifiasm_out = [self.hifiasm_dir + "hfsm.asm.bp.fa", self.hifiasm_dir + "hfsm.asm.bp.hap1.fa", self.hifiasm_dir + "hfsm.asm.bp.hap2.p_ctg.fa"]
         self.polish_flye_dir = "s04.1_p" + self.flye_step + "_polishing/"                          #Base directory to run polishing pipeline in flye assembly
         self.polish_nextdenovo_dir = "s04.2_p" + self.nextdenovo_step + "_polishing/"              #Base directory to run polishing pipeline in nextdenovo assembly  
         self.eval_dir = "evaluations/"                                                             #Base directory for the evaluations
@@ -305,6 +313,18 @@ class CreateConfigurationFile(object):
         self.flye_time = "100:00:00"
         self.flye_queue = "general"
         self.flye_mem = "950G"
+
+        #HIFIASM PARAMETERS
+        self.hifiasm_cores = 50	                                                                  #Number of threads to run Flye
+        self.other_hifiasm_opts = " --ont "                                                     #include here genome size in pipeline		
+        self.hifiasm_ext_purge = False
+        self.hifiasm_phasing = False
+
+        #HIFIASM SPEC PARAMETERS
+        self.hifiasm_qos = "vlong"
+        self.hifiasm_time = "48:00:00"
+        self.hifiasm_queue = "general"
+        self.hifiasm_mem = "500G"
 
         #NEXTDENOVO PARAMETERS
         self.nextdenovo_cores = 2	                                                        #Number of threads to run nextdenovo        
@@ -389,6 +409,7 @@ class CreateConfigurationFile(object):
         #HiC PARAMETERS
         self.hic_deepseq = True     
         self.get_pretext = True                                                            #Make it false if only QC of the HiC data needs to be done
+        self.sort_pretext = " nosort "                                                           #How to sort pretext file (you can say --nosort or change the --sortby param)
         self.yahs_cores = 48
         self.yahs_mq = 40
         self.yahs_opts = ""
@@ -518,6 +539,8 @@ class CreateConfigurationFile(object):
         self.nextdenovoParameters = {}
         self.nextdenovoSpecParameters = {}
         self.nextdenovoConfig = {}
+        self.hifiasmParameters = {}
+        self.hifiasmSpecParameters = {}
         self.minimapSpecParameters = {}
         self.bwaSpecParameters= {}
         self.hypoParameters = {}
@@ -565,6 +588,7 @@ class CreateConfigurationFile(object):
         self.register_trimgalore(parser)
         self.register_flye(parser)
         self.register_nextdenovo(parser)
+        self.register_hifiasm(parser)
         self.register_hypo(parser)
         self.register_purgedups(parser)
         self.register_scaffold10X(parser)
@@ -594,13 +618,18 @@ class CreateConfigurationFile(object):
         general_group.add_argument('--preprocess-hic-step', dest="preprocess_hic_step", default=self.preprocess_hic_step, help='Step for preprocessing hic reads. Default %s' % self.preprocess_hic_step)
         general_group.add_argument('--flye-step', dest="flye_step", default=self.flye_step, help='Step for running flye. Default %s' % self.flye_step)
         general_group.add_argument('--no-flye', dest="run_flye", action="store_false", help='Give this option if you do not want to run Flye.')
+        general_group.add_argument('--hifiasm-step', dest="hifiasm_step", default=self.hifiasm_step, help='Step for running hifiasm. Default %s' % self.hifiasm_step)        
+        general_group.add_argument('--no-hifiasm', dest="run_hifiasm", action="store_false", help='Give this option if you do not want to run Hifiasm.')
         general_group.add_argument('--nextdenovo-step', dest="nextdenovo_step", default=self.nextdenovo_step, help='Step for running nextdenovo. Default %s' % self.nextdenovo_step)
         general_group.add_argument('--run-nextdenovo', dest="run_nextdenovo", action="store_true", help='Give this option if you do want to run Nextdenovo.')
         general_group.add_argument('--nextpolish-cores', type = int, dest="nextpolish_cores", metavar="nextpolish_cores", default=self.nextpolish_cores, help='Number of threads to run the nextpolish step. Default %s' % self.nextpolish_cores)
         general_group.add_argument('--minimap2-cores', type = int, dest="minimap2_cores", metavar="minimap2_cores", default=self.minimap2_cores, help='Number of threads to run the alignment with minimap2. Default %s' % self.minimap2_cores)
         general_group.add_argument('--bwa-cores', type = int, dest="bwa_cores", metavar="bwa_cores", default=self.bwa_cores, help='Number of threads to run the alignments with BWA-Mem2. Default %s' % self.bwa_cores)
         general_group.add_argument('--hypo-cores', type = int, dest="hypo_cores", metavar="hypo_cores", default=self.hypo_cores, help='Number of threads to run the hypo step. Default %s' % self.hypo_cores)
-        general_group.add_argument('--pairtools-cores', type = int, dest="pairtools_cores", metavar="pairtools_cores", default=self.pairtools_cores, help='Number of threads to run the pairtools step. Default %s' % self.pairtools_cores)
+        general_group.add_argument('--pairtools-parse-cores', type = int, dest="pairtools_parse_cores", metavar="pairtools_parse_cores", default=self.pairtools_parse_cores, help='Number of threads to run the pairtools parse step. Default %s' % self.pairtools_parse_cores)
+        general_group.add_argument('--pairtools-sort-cores', type = int, dest="pairtools_sort_cores", metavar="pairtools_sort_cores", default=self.pairtools_sort_cores, help='Number of threads to run the pairtools sort step. Default %s' % self.pairtools_sort_cores)
+        general_group.add_argument('--pairtools-dedup-cores', type = int, dest="pairtools_dedup_cores", metavar="pairtools_dedup_cores", default=self.pairtools_dedup_cores, help='Number of threads to run the pairtools dedup step. Default %s' % self.pairtools_dedup_cores)
+        general_group.add_argument('--pairtools-split-cores', type = int, dest="pairtools_split_cores", metavar="pairtools_split_cores", default=self.pairtools_split_cores, help='Number of threads to run the pairtools split step. Default %s' % self.pairtools_split_cores)
         general_group.add_argument('--busco-cores', type = int, dest="busco_cores", metavar="busco_cores", default=self.busco_cores, help='Number of threads to run BUSCO. Default %s' % self.busco_cores)
         general_group.add_argument('--nextpolish-ont-rounds', type = int, dest="nextpolish_ont_rounds", metavar="nextpolish_ont_rounds", default=self.nextpolish_ont_rounds, help='Number of rounds to run the Nextpolish with ONT step. Default %s' % self.nextpolish_ont_rounds)
         general_group.add_argument('--nextpolish-ill-rounds', type = int, dest="nextpolish_ill_rounds", metavar="nextpolish_ill_rounds", default=self.nextpolish_ill_rounds, help='Number of rounds to run the Nextpolish with illumina step. Default %s' % self.nextpolish_ill_rounds)
@@ -608,11 +637,12 @@ class CreateConfigurationFile(object):
         general_group.add_argument('--longranger-cores', type = int, dest="longranger_cores", metavar="longranger_cores", default=self.longranger_cores, help='Number of threads to run longranger. Default %s' % self.longranger_cores)
         general_group.add_argument('--longranger-path', dest="longranger_path", metavar="longranger_path", help='Path to longranger executable. Default %s' % self.longranger_path)
         general_group.add_argument('--genomescope-opts', dest="genomescope_additional", metavar="genomescope_additional", default=self.genomescope_additional, help='Additional options to run Genomescope2 with. Default %s' % self.genomescope_additional)
-        general_group.add_argument('--no-purgedups', dest="run_purgedups", action="store_false", help='Give this option if you do not want to run Purgedups.')
+        general_group.add_argument('--no-purgedups', dest="run_purgedups", action="store_false", help='Give this option if you do not want to run Purgedups on the Flye and Nextdenovo assemblies.')
         general_group.add_argument('--ploidy', type = int, dest="ploidy", metavar="ploidy", default=self.ploidy, help='Expected ploidy. Default %s' % self.ploidy) 
         general_group.add_argument('--run-tigmint', dest="run_tigmint", action="store_true", help='Give this option if you want to run the scaffolding with 10X reads step.')
         general_group.add_argument('--run-kraken2', dest="run_kraken2", action="store_true", help='Give this option if you want to run Kraken2 on the input reads.')
         general_group.add_argument('--no-yahs', dest="run_yahs", action="store_false", help='Give this option if you do not want to run yahs.')
+        general_group.add_argument('--no-smudgeplot', dest="run_smudgeplot", action="store_false", help='Give this option if you do not want to run smudgeplot.')
         
     def register_input(self, parser):
         """Register all input parameters with the given
@@ -633,7 +663,8 @@ class CreateConfigurationFile(object):
         input_group.add_argument('--10X', dest="r10X", help='File with barcoded 10X reads in fastq.gz format, concatenated.')
         input_group.add_argument('--illumina-dir', dest="illumina_dir", help='Directory where the raw illumina fastqs are stored. Default %s' % self.illumina_dir)
         input_group.add_argument('--assembly-in', dest="assembly_in", nargs="+", type=json.loads, default=self.assembly_in, help='Dictionary with assemblies that need to be polished but not assembled and directory where they should be polished. Example: \'{\"assembly1\":\"polishing_dir1\"}\' \'{\"assembly2\"=\"polishing_dir2\"}\' ...')
-        input_group.add_argument('--postpolish-assemblies', dest="postpolish_assemblies", nargs="+", type=json.loads, default=self.postpolish_assemblies, help='Dictionary with assemblies for whic postpolishing steps need to be run but that are not assembled and base step for the directory where the first postpolishing step should be run. Example: \'{\"assembly1\":\"s04.1_p03.1\"}\' \'{\"assembly2\":\"s04.2_p03.2\"}\' ...')
+        input_group.add_argument('--postpolish-assemblies', dest="postpolish_assemblies", nargs="+", type=json.loads, default=self.postpolish_assemblies, help='Dictionary with assemblies for which postpolishing steps need to be run but that are not assembled and base step for the directory where the first postpolishing step should be run. Example: \'{\"assembly1\":\"s04.1_p03.1\"}\' \'{\"assembly2\":\"s04.2_p03.2\"}\' ...')
+        # input_group.add_argument('--yahs-assemblies', dest="yahs_assemblies", nargs="+",  type=json.loads,  default=self.yahs_assemblies, help='Dictionary with assemblies that need to be scaffolded with yahs base step for the directory where the yahs step should be run. If not specified, it will be performed in all final assemblies of the pipeline.')
         input_group.add_argument('--curated-assemblies', dest="curated_assemblies", nargs="+", type=json.loads, default=self.curated_assemblies, help='Dictionary with assemblies that have already been curated. Evaluations and read alignment will be perforder. Example: \'{\"assembly1\":\"s04.1_p03.1\"}\' \'{\"assembly2\":\"s04.2_p03.2\"}\' ...')
         input_group.add_argument('--hic-dir', dest="hic_dir", help='Directory where the HiC fastqs are stored. Default %s' % self.hic_dir)
         
@@ -649,6 +680,7 @@ class CreateConfigurationFile(object):
         output_group.add_argument('--concat-hic-dir', dest="concat_hic_dir",  help='Directory to concatenate the HiC reads. Default %s' % self.concat_hic_dir)
         output_group.add_argument('--flye-dir', dest="flye_dir",  help='Directory to run flye. Default %s' % self.flye_dir)
         output_group.add_argument('--nextdenovo-dir', dest="nextdenovo_dir",  help='Directory to run nextdenovo. Default %s' % self.nextdenovo_dir)
+        output_group.add_argument('--hifiasm-dir', dest="hifiasm_dir",  help='Directory to run hifiasm. Default %s' % self.hifiasm_dir)
         output_group.add_argument('--flye-polishing-dir', dest="polish_flye_dir",  help='Directory to polish the flye assembly. Default %s' % self.polish_flye_dir)
         output_group.add_argument('--nextdenovo-polishing-dir', dest="polish_nextdenovo_dir",  help='Directory to run nextdenovo. Default %s' % self.polish_nextdenovo_dir)
         output_group.add_argument('--eval-dir', dest="eval_dir", metavar="eval_dir",  help='Base directory for the evaluations. Default %s' %self.eval_dir)
@@ -699,6 +731,18 @@ class CreateConfigurationFile(object):
         flye_group.add_argument('--flye-polishing-iterations', dest="flye_pol_it", metavar="flye_pol_it", default=self.flye_pol_it, type = int, help='Number of polishing iterations to use with FLYE. Default %s' % self.flye_pol_it)
         flye_group.add_argument('--other-flye-opts', dest="other_flye_opts", metavar="other_flye_opts", default=self.other_flye_opts, help='Additional options to run Flye. Default %s' % self.other_flye_opts)
 
+    def register_hifiasm(self, parser):
+        """Register all hifiasm parameters with the given
+        argparse parser
+
+        parser -- the argparse parser
+        """
+        hifiasm_group = parser.add_argument_group('Hifiasm')
+        hifiasm_group.add_argument('--hifiasm-cores', dest="hifiasm_cores", metavar="hifiasm", default=self.hifiasm_cores, type = int, help='Number of threads to run Hifiasm. Default %s' % self.hifiasm_cores)
+        hifiasm_group.add_argument('--other-hifiasm-opts', dest="other_hifiasm_opts", metavar="other_hifiasm_opts", default=self.other_hifiasm_opts, help='Additional options to run Hifiasm. Default %s' % self.other_hifiasm_opts)
+        hifiasm_group.add_argument('--purge-hifiasm', dest="hifiasm_ext_purge", default = self.hifiasm_ext_purge, action="store_true", help='Give this option if you want to run purgedups externally on the hifiasm output.')
+        hifiasm_group.add_argument('--phase-hifiasm', dest="hifiasm_phasing", default = self.hifiasm_phasing, action="store_true", help='Give this option if you want to phase with hic reads the hifiasm assembly')
+        
     def register_nextdenovo(self, parser):
         """Register all nextdenovo parameters with the given
         argparse parser
@@ -764,7 +808,8 @@ class CreateConfigurationFile(object):
         """
         hic_group = parser.add_argument_group('HiC')
         hic_group.add_argument('--hic-qc', dest="hic_deepseq", action="store_false", help='Give this option if only QC of the HiC data needs to be done.')        
-        hic_group.add_argument('--no-pretext', dest="get_pretext", action="store_false", help='Give this option if you do not want to generate the pretext file')        
+        hic_group.add_argument('--no-pretext', dest="get_pretext", action="store_false", help='Give this option if you do not want to generate the pretext file') 
+        hic_group.add_argument('--sort-pretext', dest="sort_pretext", default=self.sort_pretext, help='Specify how to sort the pretext (eg. --nosort or --sortby something. Default: %s' %self.sort_pretext)        
         hic_group.add_argument('--assembly-qc', dest="assembly_qc", metavar = 'assembly_qc', help='Path to the assembly to be used perfom the QC of the HiC reads.')   
         hic_group.add_argument('--yahs-cores', dest="yahs_cores", metavar = 'yahs_cores', default = self.yahs_cores, help='Number of threads to run YAHS. Default %s' %self.yahs_cores)   
         hic_group.add_argument('--yahs-mq', dest="yahs_mq", metavar = 'yahs_mq', default = self.yahs_mq, help='Mapping quality to use when running yahs.Default %s' %self.yahs_mq)   
@@ -944,6 +989,11 @@ class CreateConfigurationFile(object):
         args.flye_queue = self.flye_queue
         args.flye_mem =  self.flye_mem      
 
+        args.hifiasm_qos =  self.hifiasm_qos
+        args.hifiasm_time = self.hifiasm_time 
+        args.hifiasm_queue = self.hifiasm_queue
+        args.hifiasm_mem =  self.hifiasm_mem  
+
         args.nextdenovo_qos =  self.nextdenovo_qos
         args.nextdenovo_time = self.nextdenovo_time 
         args.nextdenovo_queue = self.nextdenovo_queue
@@ -1089,7 +1139,10 @@ class CreateConfigurationFile(object):
           #args.pairtools_qos = 'long'
           #args.pairtools_time = "24:00:00"
           args.pairtools_mem = "500G"
-          args.pairtools_cores = 128
+          args.pairtools_parse_cores = 128
+          args.pairtools_sort_cores = 128
+          args.pairtools_dedup_cores = 4
+          args.pairtools_split_cores = 16
           args.qcstats_qos = 'normal'
           args.qcstats_time = "12:00:00"
           args.qcstats_mem = "100G"
@@ -1097,6 +1150,7 @@ class CreateConfigurationFile(object):
         if gsize > 3000:
           args.flye_qos = "eternal"
           args.flye_time = "500:00:00"
+          args.hifiasm_time = "150:00:00"
           args.minimap_time = "48:00:00"
           args.qos = "vlong"
           args.hypo_processes = 2
@@ -1122,8 +1176,10 @@ class CreateConfigurationFile(object):
             args.nextdenovo_cores = 50
           args.flye_cores = 20
           args.flye_mem = "100G"
+          args.hifiasm_qos="normal"
+          args.hifiasm_time = "12:00:00"
 
-        if args.run_flye == True or args.run_nextdenovo == True or args.nextpolish_ont_rounds > 0 or args.hypo_rounds > 0 or args.run_purgedups == True:
+        if args.run_flye == True or args.run_nextdenovo == True or args.run_hifiasm == True or args.nextpolish_ont_rounds > 0 or args.hypo_rounds > 0 or args.run_purgedups == True:
           require_ont()
         
         args.r10X_reads = {}
@@ -1170,10 +1226,17 @@ class CreateConfigurationFile(object):
               print ("\n" + args.kraken2_kmers + " should exist and it does not.")
               sys.exit(-1)
 
-        if args.other_flye_opts == None:
-          args.other_flye_opts = self.other_flye_opts + " -g " + args.genome_size + " "
-        elif not re.match("-g ",args.other_flye_opts) and not re.match("--genome-size ", args.other_flye_opts):
+        elif not re.search("-g ",args.other_flye_opts) and not re.search("--genome-size ", args.other_flye_opts):
           args.other_flye_opts += " -g " + args.genome_size + " "
+
+        if args.ploidy != 2 and not re.search("-n-hap", args.other_hifiasm_opts):
+          args.other_hifiasm_opts += " --n-hap " + str(args.ploidy) + " "
+        if args.lr_type != "pacbio-hifi":
+          if not re.search("--ont ",args.other_hifiasm_opts):
+            args.other_hifiasm_opts += " --ont "
+        else:
+          if re.search("--ont", args.other_hifiasm_opts):
+            args.other_hifiasm_opts =  args.other_hifiasm_opts.replace("--ont", "")  
 
         if args.merqury_plot_opts == None:
           args.merqury_plot_opts = ""
@@ -1182,14 +1245,29 @@ class CreateConfigurationFile(object):
           args.flye_dir = args.pipeline_workdir + "s" + args.flye_step + "_p" + args.preprocess_ont_step + "_flye/"
         else:
           args.flye_dir = os.path.abspath(args.flye_dir) + "/"  
-        args.flye_out = args.flye_dir + "flye.assembly.fasta"
+        args.flye_out = args.flye_dir + "fl.asm.fasta"
              
         if args.nextdenovo_dir == None:
           args.nextdenovo_dir = args.pipeline_workdir + "s" + args.nextdenovo_step + "_p" + args.preprocess_ont_step + "_nextdenovo/"
         else:
           args.nextdenovo_dir = os.path.abspath(args.nextdenovo_dir) + "/" 
-        args.nextdenovo_out = args.nextdenovo_dir + "nextdenovo.assembly.fasta"
+        args.nextdenovo_out = args.nextdenovo_dir + "nd.asm.fasta"
 
+        if args.hifiasm_dir == None:
+          args.hifiasm_dir = args.pipeline_workdir + "s" + args.hifiasm_step + "_p" + args.preprocess_ont_step + "_hifiasm/"
+        else:
+          args.hifiasm_dir = os.path.abspath(args.hifiasm_dir) + "/"  
+        
+        args.hifiasm_out = []
+        if args.hifiasm_phasing == True:
+          args.hifiasm_out.append(args.hifiasm_dir + "hfsm.asm.hic.fa")
+          for n in range(1, args.ploidy+1):
+            args.hifiasm_out.append(args.hifiasm_dir + "hfsm.asm.hic.hap" + str(n) + ".fa")
+        else:
+          args.hifiasm_out.append(args.hifiasm_dir + "hfsm.asm.bp.fa")
+          for n in range(1, args.ploidy+1):
+            args.hifiasm_out.append(args.hifiasm_dir + "hfsm.asm.bp.hap" + str(n) + ".fa")
+        
         if args.busco_lineage:
           args.busco_lineage = os.path.abspath(args.busco_lineage)
           if not os.path.exists(args.busco_lineage):
@@ -1204,17 +1282,26 @@ class CreateConfigurationFile(object):
               args.assemblies[os.path.abspath(key)] = os.path.abspath(my_dict[key]) + "/"
 
         args.assemblies_cur = {}
+        
         if len(args.postpolish_assemblies):
           for my_dict in args.postpolish_assemblies:
             for key in my_dict:
               args.assemblies_cur[os.path.abspath(key)] = my_dict[key]
+              
+        # args.assemblies_yahs = {}
+        # if len(args.yahs_assemblies):
+        #   for my_dict in args.yahs_assemblies:
+        #     for key in my_dict:
+        #       args.assemblies_yahs[os.path.abspath(key)] = my_dict[key]
 
         args.final_assemblies = {}
         if len(args.curated_assemblies):
+          if not args.ONT_reads and os.path.exists(args.ONT_dir):
+             require_ont()
           for my_dict in args.curated_assemblies:
             for key in my_dict:
               args.final_assemblies[os.path.abspath(key)] = os.path.abspath(my_dict[key])
-
+        
         if args.nextpolish_ill_rounds > 0 or args.hypo_rounds >0 or args.nextpolish_ont_rounds:
           if args.run_flye == True:
             if args.polish_flye_dir != None:
@@ -1230,36 +1317,57 @@ class CreateConfigurationFile(object):
               step = float(args.nextdenovo_step) + 1
               args.polish_nextdenovo_dir = args.pipeline_workdir + "s0" + str(step) + "_p" + args.nextdenovo_step + "_polishing/"
             args.assemblies[args.nextdenovo_out] = args.polish_nextdenovo_dir
+        elif args.run_purgedups == True:
+          if args.run_flye == True:
+            args.assemblies[args.flye_out] = args.flye_dir
+          if args.run_nextdenovo == True:
+            args.assemblies[args.nextdenovo_out] = args.nextdenovo_dir
 
-          if args.run_purgedups == True:          
-            if len(args.assemblies) > 0:
-              pol_bases = {}
-              base_tmp = ""
-              if  args.hypo_rounds >0:
-                pol_bases["hypo"] = "hypo" + str(args.hypo_rounds)
-              if args.nextpolish_ont_rounds > 0:
-                base_tmp+= "nextpolish_ont" + str(args.nextpolish_ont_rounds)
-              if args.nextpolish_ill_rounds > 0:
-                if base_tmp != "":
-                  base_tmp += "."
-                base_tmp += "nextpolish_ill" + str(args.nextpolish_ill_rounds)
+        paths = 0
+        if args.run_purgedups == True:      
+          if len(args.assemblies) > 0:
+            pol_bases = {}
+            base_tmp = ""
+            if  args.hypo_rounds >0:
+              pol_bases["hypo"] = "hp" + str(args.hypo_rounds)
+            if args.nextpolish_ont_rounds > 0:
+              base_tmp+= "npo" + str(args.nextpolish_ont_rounds)
+            if args.nextpolish_ill_rounds > 0:
               if base_tmp != "":
-                pol_bases["nextpolish"] = base_tmp
-              paths = 0
-              for m in args.assemblies:
-                bpol = os.path.splitext(os.path.basename(m))[0]
-                path = args.assemblies[m]
-                pstep = path.split('/')[-2].split('_')[0]
+                base_tmp += "."
+              base_tmp += "npi" + str(args.nextpolish_ill_rounds)
+            if base_tmp != "":
+              pol_bases["nextpolish"] = base_tmp
+            for m in args.assemblies:
+              bpol = os.path.splitext(os.path.basename(m))[0]
+              path = args.assemblies[m]
+              pstep = path.split('/')[-2].split('_')[0]
                 
-                nstep = pstep.replace('s','')
+              nstep = pstep.replace('s','')
                 #cstep = float(nstep) + 1 + paths
-                if paths != 0:
-                  paths -= 0.1
+              if paths != 0:
+                paths -= 0.1
+              if pol_bases:
                 for p in pol_bases:
                   cstep = round(float(nstep) + 1 + paths,1)
                   args.assemblies_cur[args.assemblies[m] + p + "/" + bpol + "." +  pol_bases[p] + ".fasta"] = "s0" + str(cstep) + "_p" + nstep
                   paths += 0.1
-        
+              else:
+                  cstep = round(float(nstep) + 1 + paths,1)
+                  args.assemblies_cur[args.assemblies[m] + bpol + ".fasta"] = "s0" + str(cstep) + "_p" + nstep
+                  paths += 0.1
+        # if args.run_hifiasm and len(args.hifiasm_out) and not len(args.assemblies_cur):
+        if args.run_hifiasm and len(args.hifiasm_out):
+          if args.hifiasm_ext_purge == True or args.run_yahs == True:
+            if paths != 0:
+              paths -= 0.1
+            for m in args.hifiasm_out:
+              path = os.path.basename(os.path.dirname(m))
+              pstep = path.split('_')[0]
+              nstep = pstep.replace('s','')
+              cstep = round(float(nstep) + 1 + paths,1)
+              args.assemblies_cur[m] = "s0" + str(cstep) + "_p" + nstep
+              paths += 0.1
         if args.blastdb:
           args.blastdb = os.path.abspath(args.blastdb)
 
@@ -1296,7 +1404,7 @@ class CreateConfigurationFile(object):
               parser.print_help()
               print ("Please, specify the total length of " + args.assembly_qc + " to perform the HiC QC step.")
               sys.exit(-1)          
-               
+          
 ###
 
     def storeGeneralParameters(self,args):
@@ -1318,7 +1426,9 @@ class CreateConfigurationFile(object):
         self.generalParameters["preprocess_10X_step"] = args.preprocess_10X_step
         self.generalParameters["preprocess_hic_step"] = args.preprocess_hic_step
         self.generalParameters["flye_step"] = args.flye_step
+        self.generalParameters["hifiasm_step"] = args.hifiasm_step
         self.generalParameters["run_flye"] = args.run_flye
+        self.generalParameters["run_hifiasm"] = args.run_hifiasm
         self.generalParameters["nextdenovo_step"] = args.nextdenovo_step
         self.generalParameters["run_nextdenovo"] = args.run_nextdenovo
         self.generalParameters["nextpolish_ont_rounds"] = args.nextpolish_ont_rounds
@@ -1328,7 +1438,10 @@ class CreateConfigurationFile(object):
         self.generalParameters["minimap2_cores"] = args.minimap2_cores
         self.generalParameters["BWA_cores"] = args.bwa_cores
         self.generalParameters["hypo_cores"] = args.hypo_cores
-        self.generalParameters["pairtools_cores"] = args.pairtools_cores
+        self.generalParameters["pairtools_parse_cores"] = args.pairtools_parse_cores
+        self.generalParameters["pairtools_sort_cores"] = args.pairtools_sort_cores
+        self.generalParameters["pairtools_dedup_cores"] = args.pairtools_dedup_cores
+        self.generalParameters["pairtools_split_cores"] = args.pairtools_split_cores
         self.generalParameters["busco_cores"] = args.busco_cores
         self.generalParameters["longranger_cores"] = args.longranger_cores
         self.generalParameters["longranger_path"] = args.longranger_path
@@ -1338,6 +1451,7 @@ class CreateConfigurationFile(object):
         self.generalParameters["run_tigmint"] = args.run_tigmint
         self.generalParameters["run_kraken2"] = args.run_kraken2
         self.generalParameters["run_yahs"] = args.run_yahs
+        self.generalParameters["run_smudgeplot"] = args.run_smudgeplot
         self.allParameters["Parameters"] = self.generalParameters
 
     def storeallSpecParameters(self,args):
@@ -1371,6 +1485,7 @@ class CreateConfigurationFile(object):
         self.inputParameters["HiC_dir"] = args.hic_dir
         self.inputParameters["Assemblies for polishing"] = args.assemblies
         self.inputParameters["Assemblies for postpolishing"] = args.assemblies_cur
+        # self.inputParameters["Assemblies for yahs"] = args.assemblies_yahs
         self.inputParameters["Curated Assemblies"] = args.final_assemblies
         self.allParameters ["Inputs"] = self.inputParameters
 
@@ -1384,7 +1499,9 @@ class CreateConfigurationFile(object):
         self.outputParameters["concat_HiC_dir"] = args.concat_hic_dir
         self.outputParameters["flye_dir"] = args.flye_dir
         self.outputParameters["nextdenovo_dir"] = args.nextdenovo_dir
+        self.outputParameters["hifiasm_dir"] = args.hifiasm_dir
         self.outputParameters["flye_out"] = args.flye_out
+        self.outputParameters["hifiasm_out"] = args.hifiasm_out
         self.outputParameters["nextdenovo_out"] = args.nextdenovo_out
         self.outputParameters["eval_dir"] = args.eval_dir
         self.outputParameters["stats_out"] = args.stats_out
@@ -1564,6 +1681,29 @@ class CreateConfigurationFile(object):
         self.flyeSpecParameters["mem"] = args.flye_mem
         self.allParameters ["flye"] = self.flyeSpecParameters
 
+    def storeHifiasmParameters(self,args):
+        """Updates hifiasm parameters to the map of parameters to be store in a JSON file
+
+        args -- set of parsed arguments
+        """
+        self.hifiasmParameters["Hifiasm cores"] = args.hifiasm_cores
+        self.hifiasmParameters["options"] = args.other_hifiasm_opts
+        self.hifiasmParameters["external_purging"] = args.hifiasm_ext_purge
+        self.hifiasmParameters["phase"] = args.hifiasm_phasing
+        self.allParameters ["Hifiasm"] = self.hifiasmParameters
+
+    def storeHifiasmSpecParameters(self,args):
+        """Updates hifiasm cluster spec parameters to the map of parameters to be store in a JSON file
+
+        args -- set of parsed arguments
+        """
+        self.hifiasmSpecParameters["name"] = "{rule}_" + args.base_name + "_s" + args.hifiasm_step 
+        self.hifiasmSpecParameters["qos"] = args.hifiasm_qos
+        self.hifiasmSpecParameters["time"] = args.hifiasm_time
+        self.hifiasmSpecParameters["queue"] = args.hifiasm_queue
+        self.hifiasmSpecParameters["mem"] = args.hifiasm_mem
+        self.allParameters ["hifiasm"] = self.hifiasmSpecParameters
+
     def storeNextdenovoParameters(self,args):
         """Updates nextdenovo parameters to the map of parameters to be store in a JSON file
 
@@ -1594,7 +1734,7 @@ class CreateConfigurationFile(object):
         self.minimapSpecParameters["time"] = args.minimap_time
         self.minimapSpecParameters["queue"] = args.minimap_queue
         self.minimapSpecParameters["mem"] = args.minimap_mem
-        self.allParameters ["align_ont"] = self.minimapSpecParameters
+        self.allParameters ["align_lr"] = self.minimapSpecParameters
 
     def storebwaSpecParameters(self,args):
         """Updates BWA cluster spec parameters to the map of parameters to be store in a JSON file
@@ -1705,6 +1845,7 @@ class CreateConfigurationFile(object):
         """
         self.hicParameters["deepseq"] = args.hic_deepseq
         self.hicParameters["get_pretext"] = args.get_pretext
+        self.hicParameters["sort_pretext"] = args.sort_pretext
         self.hicParameters["yahs_cores"] = args.yahs_cores
         self.hicParameters["yahs_mq"] = args.yahs_mq
         self.hicParameters["yahs_opts"] = args.yahs_opts
@@ -2040,6 +2181,7 @@ configManager.storekraken2Parameters(args)
 configManager.storeFiltlongParameters(args)
 configManager.storeFlyeParameters(args)
 configManager.storeNextdenovoParameters(args)
+configManager.storeHifiasmParameters(args)
 configManager.storeHypoParameters(args)
 configManager.storePurgedupsParameters(args)
 configManager.storehicParameters(args)
@@ -2062,6 +2204,8 @@ if args.run_kraken2 == True:
   specManager.storekraken2SpecParameters(args)
 if args.run_flye == True:
   specManager.storeflyeSpecParameters(args)
+if args.run_hifiasm == True:
+  specManager.storeHifiasmSpecParameters(args)
 if args.run_nextdenovo == True:
   specManager.storenextdenovoSpecParameters(args)
   with open(args.ndconfFile, 'w') as ndconf:
@@ -2104,7 +2248,8 @@ if args.merqury_db:
   if not os.path.exists(args.merqury_db):
     specManager.storebuildmerylSpecParameters(args)
     specManager.storeconcatmerylSpecParameters(args)
-  specManager.storesmudgeplotSpecParameters(args)
+  if args.run_smudgeplot:
+    specManager.storesmudgeplotSpecParameters(args)
   specManager.storegenomescopeSpecParameters(args)
   specManager.storemerqurySpecParameters(args)
 if args.final_evals:
