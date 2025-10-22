@@ -26,18 +26,35 @@ if config["Finalize"]["final Evaluations"] == True:
       assemblies.append(i) 
 
 in_files = {}
+gfa_files = {}
 evals_dir = {}
 BuscoSummaries = []
 StatsFiles = []
+telo_bgs = {}
+hap1_files = {}
+hap2_files = {}
+telomeres = []
 MerqurySummaries = []
 MerquryQV = []
 MerquryDups = []
 Merqury_in = []
 lrtype = config["Parameters"]["lr_type"]
-stats_loc = {}
 
 if config["Finalize"]["BUSCO lineage"]:
   buscodb = os.path.basename(config["Finalize"]["BUSCO lineage"])
+
+if config["Parameters"]["run_hifiasm"] == True:
+  for file in gfas:
+    ass_base = os.path.splitext(os.path.basename(file))[0]
+    basedirname = os.path.basename(os.path.dirname(file))
+    evalassdir =  eval_dir + basedirname + "/"
+    gfa_files[evalassdir + ass_base] = file
+
+if config["Parameters"]["run_flye"] == True:
+  ass_base = os.path.splitext(os.path.basename(fl_gfa))[0]
+  basedirname = os.path.basename(os.path.dirname(fl_gfa))
+  evalassdir =  eval_dir + basedirname + "/"
+ #gfa_files[evalassdir + ass_base] = flye_assembly
 
 for file in assemblies:
   ass_base = os.path.splitext(os.path.basename(file))[0]
@@ -57,8 +74,9 @@ for file in assemblies:
   evals_dir[evalassdir + ass_base] = evalassdir
 
   StatsFiles.append(evalassdir + "stats/" + ass_base + ".stats.txt")
-  stats_loc[ass_base] = evalassdir + "stats/" + ass_base + ".gaps.txt"
-
+  if config["Parameters"]["telo_repeat"]:
+    telo_bgs[ass_base] = evalassdir + "telomeres/" + ass_base + "." + config["Parameters"]["telo_repeat"] + "_telo.bg"
+    telomeres.append(evalassdir + "telomeres/" + ass_base + "." + config["Parameters"]["telo_repeat"] + "_telo.bg")
   if config["Finalize"]["BUSCO lineage"]:
     BuscoSummaries.append(buscodir + ass_base + "." + buscodb + ".short_summary.txt")
 
@@ -72,7 +90,7 @@ for file in assemblies:
   elif config["Finalize"]["Merqury db"] and re.search("hap", file):
     hap_base = ass_base.split(".hap")
     fullbase = hap_base[0]  
-    if not re.search("purge", file) and not re.search("scffs", file):
+    if not re.search("pgd", file) and not re.search("yhs", file):
       merqdir = evalassdir + "merqury/" + hap_base[0] + ".haps"
       if evalassdir + hap_base[0] + ".haps" in in_files and not file in in_files[evalassdir + hap_base[0] + ".haps"]:
         in_files[evalassdir + hap_base[0] + ".haps"].append(file)
@@ -83,10 +101,19 @@ for file in assemblies:
       for i in range(1, len(hap_end)):
         fullbase+= "." + hap_end[i]
       step_dir = os.path.basename(evalassdir.rstrip("/"))
-      hap_step = step_dir.split(".")
-      tmp_step = hap_step[1].split("_")
-      merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps/merqury/" + fullbase + ".haps"
-      ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps"
+      if re.search("^s([0-9]+)\.([0-9]+)_p([0-9]+)", step_dir):
+        hap_step = step_dir.split(".")
+        tmp_step = hap_step[1].split("_")
+        if len(hap_end) == 3:
+          tmp2 = hap_step[2].split("_")[1:]
+          merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps/merqury/" + fullbase + ".haps"
+          ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps"
+        else:
+          merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps/merqury/" + fullbase + ".haps"
+          ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps"
+      else:
+         merqdir = evalassdir + "merqury/" +  fullbase + ".haps"
+         ev_dir = evalassdir.rstrip("/")
       if not os.path.exists(ev_dir + "/logs/"):
         os.makedirs(ev_dir + "/logs/")
       if ev_dir + "/" + fullbase + ".haps" in in_files and not file in in_files[ev_dir + "/" + fullbase + ".haps"]:
@@ -97,8 +124,34 @@ for file in assemblies:
     MerquryQV.append(merqdir + "/" + fullbase + ".haps.qv")
     MerquryDups.append(merqdir + "/" + fullbase +  ".haps.false_duplications.txt")
 
+    if "hap" in file:
+      if "yhs" in fullbase or ass_base in curated_assemblies:
+        if "hap1" in file:
+          hap1_files[ev_dir + "/diploid/" + fullbase] = file
+        elif "hap2" in file:
+          hap2_files[ev_dir + "/diploid/" + fullbase] = file
+        if not os.path.exists(ev_dir + "/diploid/logs/"):
+           os.makedirs(ev_dir + "/diploid/logs")
+        diploid_fasta = ev_dir + "/diploid/" + fullbase + ".diploid.fa"
+        if config["Parameters"]["telo_repeat"]:
+          telo_bgs[fullbase + ".diploid"] = ev_dir + "/diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg"
+          telomeres.append(ev_dir + "/diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg")
+        in_files[ev_dir + "/diploid/" + fullbase + ".diploid" ] = diploid_fasta
+        hic_assemblies[fullbase + ".diploid"] = diploid_fasta
+        pretext_lrmap[fullbase + ".diploid"] = ev_dir + "/diploid/mappings/" + fullbase + ".diploid_minimap2.bam"
+        hic_bams[fullbase + ".diploid"] = ev_dir + "/diploid/mappings/" + fullbase + ".diploid.full_hic.bam"
+        asslength[fullbase + ".diploid"] = ev_dir + "/diploid/"+ fullbase + ".diploid.genome"
+        pretext_in.append(diploid_fasta)
+        minimap2[fullbase + ".diploid"] = diploid_fasta
+        tpf_files.append(diploid_fasta + ".tpf")
+
+        for mq in config['HiC']['MQ']:
+          pretext_files.append(ev_dir + "/diploid/in_pretext/" + fullbase + ".diploid_mq" + str(mq) + ".extensions.pretext")
+          if not os.path.exists(ev_dir + "/diploid/in_pretext/logs"):
+            os.makedirs(ev_dir + "/diploid/in_pretext/logs")
+
 #1- Perform alignments
-if len(bwa) > 0:
+if len(bwa) >0:
   use rule align_illumina from eval_workflow with:
     input:
       genome = lambda wildcards: bwa[wildcards.name],
@@ -122,15 +175,17 @@ if len(minimap2) > 0:
   use rule align_lr from eval_workflow with:
     input:
       genome = lambda wildcards: minimap2[wildcards.name],
-      reads = lambda wildcards: ont_reads if wildcards.ext == "minimap2.allreads.paf.gz" else ONT_filtered,
+      reads = lambda wildcards: ont_reads if wildcards.ext == "minimap2.allreads.paf.gz" and lrtype == "nano-raw"
+                                else reads2assemble,
     output:
       mapping = "{directory}/mappings/{name}_{ext}"
     params:
       align_opts = lambda wildcards:"ax" if wildcards.ext == "minimap2.bam" else "x",
+      split = "" if gsize < 4000 else " --split-prefix {name}_tmp ",
       type = lambda wildcards:"map-ont" if lrtype == "nano-raw" else "map-hifi",
       # tmp = "{directory}/mappings/{name}_{ext}.tmp",
-      split = "" if gsize < 4000 else " --split-prefix {name}_tmp ",
-      compress_cmd = lambda wildcards : "samtools sort -@ " + str(config["Parameters"]["minimap2_cores"]) +" -o " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext +";" +\
+      compress_cmd = lambda wildcards : "samtools view -Sb - | " \
+                     "samtools sort -@ " + str(config["Parameters"]["minimap2_cores"]) +" -o " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext +";" +\
                      "samtools index -c " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext  \
                      if wildcards.ext == "minimap2.bam" else \
                      "gzip -c > " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext         
@@ -144,6 +199,28 @@ if len(minimap2) > 0:
     conda:
       "../envs/minimap2.24.yaml"
     threads: config["Parameters"]["minimap2_cores"]
+
+if not config['HiC']['deepseq']: 
+  use rule read_screening from eval_workflow with:
+    input:
+      umapped = "{directory}/mappings/{name}.unmapped_hic.bam",
+    output:
+      ufasta = "{directory}/blast/unmapped_hic.{name}.{readsblast}.fasta",
+      subufasta = "{directory}/blast/unmapped_hic.{name}.{readsblast}_reads.fasta",
+      blastoutbscore = "{directory}/blast/unmapped_hic.{name}.{readsblast}_unmapped_reads_vs_nt_25cul1_1e25.megablast.sorted_by_bitscore.out",
+      blastoutbscorethits = "{directory}/blast/unmapped_hic.{name}.{readsblast}_unmapped_reads_vs_nt_25cul1_1e25.megablast.sorted_by_bitscore.tophits",
+      blastoutorganisms = "{directory}/blast/unmapped_hic.{name}.{readsblast}_unmapped_reads_vs_nt_25cul1_1e25.megablast.organisms.txt" 
+    params:
+      scripts_dir = scripts_dir,
+      outd = "{directory}/blast/",
+      readforblast = config['HiC']['reads_for_blast'],
+      blastdb = config['HiC']['blastdb']
+    log:
+      "{directory}/logs/" + str(date) + ".j%j.rule_screening.{name}.{readsblast}_reads.out",
+      "{directory}/logs/" + str(date) + ".j%j.rule_screening.{name}.{readsblast}_reads.err"
+    benchmark:
+      "{directory}/logs/" + str(date) + ".rule_screening.{name}.{readsblast}_reads.benchmark.txt"
+    threads:  config['HiC']['blast_cores']
 
 if len(hic_assemblies) > 0:
 
@@ -257,8 +334,8 @@ if len(hic_assemblies) > 0:
       statmq = "{directory}/pairtools_out/stats.mq{mq}.{name}.txt",
       mapbam = "{directory}/pairtools_out/mapped.PT.mq{mq}.{name}.bam"
     output:
-      libstats = "{directory}/pairtools_out/HiC_Final_LibraryStats_mq{mq}.{name}.txt" if config['HiC']['deepseq'] 
-                 else "{directory}/pairtools_out/HiC_QC_LibraryStats_mq{mq}.{name}.txt",
+      libstats = "{directory}/HiC_Final_LibraryStats_mq{mq}.{name}.txt" if config['HiC']['deepseq'] 
+                 else "{directory}/HiC_QC_LibraryStats_mq{mq}.{name}.txt",
     wildcard_constraints:
       mq="\d+",
     params:
@@ -266,20 +343,21 @@ if len(hic_assemblies) > 0:
       outd = '{directory}/pairtools_out',
       assemblylength = config['HiC']['qc_assemblylen'],
       deepseq = config['HiC']['deepseq'],
-      pslibstats = "{directory}/pairtools_out/HiC_QC_LibraryStats_extrapolated_mq{mq}.{name}.txt" 
+      pslibstats = "{directory}/HiC_QC_LibraryStats_extrapolated_mq{mq}.{name}.txt",
+      add_preseq_opts = config["HiC"]["add_preseq_opts"]
     log:
         "{directory}/logs/" + str(date) + ".j%j.rule_qc_stats.mq{mq}.{name}.out",
         "{directory}/logs/" + str(date) + ".j%j.rule_qc_stats.mq{mq}.{name}.err"
     benchmark:
         "{directory}/logs/" + str(date) + ".rule_qc_stats.benchmark.mq{mq}.{name}.txt"
     threads: 2
-    
+
   if config['HiC']['get_pretext']:
     use rule get_extension_gaps from eval_workflow with:
       input:
         sla = lambda wildcards: hic_assemblies[wildcards.name],
-        gaps_bed = lambda wildcards: stats_loc[wildcards.name],
       output:
+        gaps_bed = "{directory}/{name}.gaps.bed",
         gaps = "{directory}/{name}.gaps.bg"
       params:
         scripts_dir = scripts_dir,
@@ -289,84 +367,76 @@ if len(hic_assemblies) > 0:
       benchmark:
         "{directory}/logs/" + str(date) + ".rule_gaps.{name}.benchmark.txt"
       threads:  1
-
-    use rule get_extension_telomeres from eval_workflow with:
+    
+    use rule tidk_search from eval_workflow with:
       input:
-        sla = lambda wildcards: hic_assemblies[wildcards.name]
+        sla = lambda wildcards: in_files[wildcards.directory + "/" + wildcards.name],
       output:
-        tel = "{directory}/{name}.telomeres.bg"
+        tel = "{directory}/telomeres/{name}." + config["Parameters"]["telo_repeat"] + "_telo.bg"
       params:
-        outd = "{directory}"
+        outd = "{directory}/telomeres/",
+        teloseq = config["Parameters"]["telo_repeat"],
+        outname = "{name}." + config["Parameters"]["telo_repeat"]
       log:
-        "{directory}/logs/" + str(date) + ".j%j.rule_telomeres.{name}.out",
-        "{directory}/logs/" + str(date) + ".j%j.rule_telomeres.{name}.err"
+        "{directory}/logs/" + str(date) + ".j%j.rule_telo_search.{name}.out",
+        "{directory}/logs/" + str(date) + ".j%j.rule_telo_search.{name}.err"
       benchmark:
-        "{directory}/logs/" + str(date) + ".rule_telomeres.{name}.benchmark.txt"
+        "{directory}/logs/" + str(date) + ".rule_telo_search.{name}.benchmark.txt"
       threads:  2
 
     if len(minimap2) > 0:
-      use rule get_extension_ont from eval_workflow with:
+      use rule get_extension_cov from eval_workflow with:
         input:
           sbam = lambda wildcards: pretext_lrmap[wildcards.name],
         output: 
-          ontcov = "{directory}/{name}.ONTcoverage.bg"
+          ontcov = "{directory}/{name}.LRcoverage.bg"
         log:
-          "{directory}/logs/" + str(date) + ".j%j.rule_ont_bed.{name}.out",
-          "{directory}/logs/" + str(date) + ".j%j.rule_ont_bed.{name}.err"
+          "{directory}/logs/" + str(date) + ".j%j.rule_cov_bed.{name}.out",
+          "{directory}/logs/" + str(date) + ".j%j.rule_cov_bed.{name}.err"
         benchmark:
-          "{directory}/logs/" + str(date) + ".rule_ont_bed.{name}.benchmark.txt"
+          "{directory}/logs/" + str(date) + ".rule_cov_bed.{name}.benchmark.txt"
         threads:  1
-
-  if not config['HiC']['deepseq']:  #run for qc as well
-    use rule read_screening from eval_workflow with:
-      input:
-        umapped = "{directory}/mappings/{name}.unmapped_hic.bam",
-      output:
-        ufasta = "{directory}/blast/unmapped_hic.{name}.{readsblast}.fasta",
-        subufasta = "{directory}/blast/unmapped_hic.{name}.{readsblast}_reads.fasta",
-        blastoutbscore = "{directory}/blast/unmapped_hic.{name}.{readsblast}_unmapped_reads_vs_nt_25cul1_1e25.megablast.sorted_by_bitscore.out",
-        blastoutbscorethits = "{directory}/blast/unmapped_hic.{name}.{readsblast}_unmapped_reads_vs_nt_25cul1_1e25.megablast.sorted_by_bitscore.tophits",
-        blastoutorganisms = "{directory}/blast/unmapped_hic.{name}.{readsblast}_unmapped_reads_vs_nt_25cul1_1e25.megablast.organisms.txt" 
-      params:
-        scripts_dir = scripts_dir,
-        outd = "{directory}/blast/",
-        readforblast = config['HiC']['reads_for_blast'],
-        blastdb = config['HiC']['blastdb']
-      log:
-        "{directory}/logs/" + str(date) + ".j%j.rule_screening.{name}.{readsblast}_reads.out",
-        "{directory}/logs/" + str(date) + ".j%j.rule_screening.{name}.{readsblast}_reads.err"
-      benchmark:
-        "{directory}/logs/" + str(date) + ".rule_screening.{name}.{readsblast}_reads.benchmark.txt"
-      threads:  config['HiC']['blast_cores']
+    
+  use rule generate_diploid from eval_workflow with:
+    input:
+      hap1=lambda wildcards: hap1_files[wildcards.directory +"/" + wildcards.name],
+      hap2=lambda wildcards: hap2_files[wildcards.directory +"/" + wildcards.name]
+    output:
+      diploid= "{directory}/{name}.diploid.fa"
+    log:
+      "{directory}/logs/" + str(date) + ".j%j.rule_get_diploid.{name}.out",
+      "{directory}/logs/" + str(date) + ".j%j.rule_get_diploid.{name}.err",
+    benchmark:
+      "{directory}/logs/" + str(date) + ".rule_get_diploid.{name}.benchmark.txt",
 
 #2- Run evaluations
-
-use rule get_stats from eval_workflow with:
+use rule get_stats_gfa from eval_workflow with:
   input:
-    assembly =  lambda wildcards: in_files[eval_dir + wildcards.dir + "/" + wildcards.buscobase],
+    #assembly_fa =  lambda wildcards: in_files[eval_dir + wildcards.dir + "/" + wildcards.buscobase],
+    assembly_gfa = lambda wildcards: gfa_files[eval_dir + wildcards.dir + "/" + wildcards.buscobase]
+                   if re.search("hifiasm", wildcards.dir)
+                   else in_files[eval_dir + wildcards.dir + "/" + wildcards.buscobase]
   output: 
-    nseries = report(eval_dir + "{dir}/stats/{buscobase}.nseries.txt",
-              caption="../report/stats.rst",
-              category = "Evaluate assemblies",
-              subcategory = "{dir}"),
+    # nseries = report(eval_dir + "{dir}/stats/{buscobase}.nseries.txt",
+    #           caption="../report/stats.rst",
+    #           category = "Evaluate assemblies",
+    #           subcategory = "{dir}"),
     stats = report (eval_dir + "{dir}/stats/{buscobase}.stats.txt",
               caption="../report/stats.rst",
               category = "Evaluate assemblies",
               subcategory = "{dir}"),
-    gaps = report(eval_dir + "{dir}/stats/{buscobase}.gaps.txt",
-              caption="../report/stats.rst",
-              category = "Evaluate assemblies",
-              subcategory = "{dir}")
   params:
     outbase = "{buscobase}",
-    scripts_dir = scripts_dir
+    scripts_dir = scripts_dir,
+    params = lambda wildcards: " --discover-paths " if re.search("hifiasm", wildcards.dir)
+                                  else " " 
   log:
     eval_dir + "{dir}/logs/" + str(date) + ".j%j.get_stats.{buscobase}.out",
     eval_dir + "{dir}/logs/" + str(date) + ".j%j.get_stats.{buscobase}.err"
   benchmark:  
     eval_dir + "{dir}/logs/" + str(date) + ".get_stats.{buscobase}.benchmark.out",
   conda:
-    '../envs/ass_base.yaml'
+    '../envs/gfastastats1.3.10.yaml'
   threads: 1
 
 if config["Finalize"]["BUSCO lineage"] != None:
@@ -393,11 +463,10 @@ if config["Finalize"]["BUSCO lineage"] != None:
     benchmark:
       eval_dir + "{dir}/logs/" + str(date) + ".busco.{buscobase}.{buscodb}.benchmark.txt"
     conda:
-      '../envs/busco5.5.0.yaml'
+      '../envs/busco6.0.0.yaml'
     threads: config["Parameters"]["busco_cores"]
 
 if  config["Finalize"]["Merqury db"] != None:
-
   use rule run_merqury from eval_workflow with:
     input:
       meryl_db = config["Finalize"]["Merqury db"],
@@ -436,6 +505,7 @@ if  config["Finalize"]["Merqury db"] != None:
 
 #Run final job of the pipeline
 rmcmd = ""
+ass_cleand = []
 if keepfiles == False:
   rmcmd = "echo 'Pipeline has been completed succesffully, we are now going to delete temporary files:';"
   if config["Inputs"]["processed_illumina"] != None:
@@ -443,15 +513,28 @@ if keepfiles == False:
     illumina_list = config["Wildcards"]["illumina_wildcards"].split(',')
     if os.path.exists(config["Inputs"]["processed_illumina"] + illumina_list[0] + ".1_val_1.fq.gz"):
       rmcmd += "echo 'Deleting fastqs in " + t + "'; rm " + t + "*.gz;"
-    if config["Finalize"]["Merqury db"] != None:
-      t = os.path.dirname(config["Finalize"]["Merqury db"]) + "/tmp_meryl/"
-      if (os.path.exists(t)):
-        rmcmd += "echo 'Deleting " + t + "'; rm -r " + t + ";"
-  for i in inputs:
-    rundir = inputs[i]
-    rmcmd += "echo 'Deleting mappings in " + rundir + "mappings'; rm -r " + rundir +  "mappings;"
-    if os.path.exists(rundir + "hypo/aux"):
-      rmcmd += "echo 'Deleting " + rundir + "hypo/aux;'; rm -r " + rundir + "/hypo/aux;"
+  if config["Finalize"]["Merqury db"] != None:
+    t = os.path.dirname(config["Finalize"]["Merqury db"]) + "/tmp_meryl/"
+    if (os.path.exists(t)):
+      rmcmd += "echo 'Deleting " + t + "'; rm -r " + t + ";"
+  for i in assemblies:
+    rundir = os.path.dirname(i) + "/"
+    if i not in ass_cleand:
+      ass_cleand.append(i) 
+      if os.path.exists(rundir + "mappings") and not i in pretext_in:
+        rmcmd += "echo 'Deleting mappings in " + rundir + "mappings'; rm -r " + rundir +  "mappings;"
+      elif i in pretext_in:
+        if os.path.exists(rundir + "in_pretext/pairtools_out"):
+          rmcmd += "echo 'Deleting files in " + rundir + "in_pretext/pairtools_out'; rm -r " + rundir +  "in_pretext/pairtools_out;"
+        if os.path.exists(rundir + "out_pretext/pairtools_out"):
+          rmcmd += "echo 'Deleting files in " + rundir + "out_pretext/pairtools_out'; rm -r " + rundir +  "out_pretext/pairtools_out;"
+        if os.path.exists(rundir+"mappings"):
+          rmcmd += "echo 'Deleting hic alignments in " + rundir + "mappings'; for i in  `find " + rundir + "mappings -name '*hic*'`; do rm $i; done;"
+      if os.path.exists(rundir + "hypo/aux"):
+        rmcmd += "echo 'Deleting " + rundir + "hypo/aux;'; rm -r " + rundir + "/hypo/aux;"
+  for i in reads_loc:
+    if "_bam.fastq" in i:
+      rmcmd += "echo 'Deleting " + i + ";'; rm -r " + i + ";"  
 
 use rule finalize from eval_workflow with:
   input:
@@ -459,6 +542,7 @@ use rule finalize from eval_workflow with:
     buscos = BuscoSummaries,
     stats= StatsFiles,
     merqs=MerquryQV,
+    telos=telomeres,
     pretext = lambda wildcards: pretext_files if config["HiC"]["deepseq"] == True else [],
     tpf = lambda wildcards: tpf_files if config["HiC"]["deepseq"] == True else []
   output:
@@ -476,18 +560,3 @@ use rule finalize from eval_workflow with:
   conda:
     '../envs/ass_base.yaml'
   threads: 1
-  
-# use rule get_report from eval_workflow with:
-#   input:
-#     stats = config["Outputs"]["stats_out"],
-#     config = config["Parameters"]["configFile"]
-#   output:
-#     report = base + ".report.zip"
-#   log:
-#     logs_dir + str(date) + ".j%j.get_report.out",
-#     logs_dir + str(date) + ".j%j.get_report.err"
-#   benchmark:
-#     logs_dir + str(date) + ".get_report.benchmark.txt"
-#   conda:
-#     '../envs/ass_base.yaml'
-#   threads: 1

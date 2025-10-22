@@ -74,6 +74,7 @@ rule hifiasm:
     outdir = os.getcwd() + "/hifiasm/",
     out_base = "hfsm.asm",
     phase = "",
+    teloseq = "TTAGGG",
     other_hfsm_opts = " --ont ",
   threads: 24
   log:
@@ -88,8 +89,8 @@ rule hifiasm:
   shell:
     "mkdir -p {params.outdir};"
     "cd {params.outdir};"
-    "echo 'Running command: hifiasm {params.other_hfsm_opts} {params.phase}  -o {params.out_base} -t {threads} {input.reads}';"
-    "hifiasm {params.other_hfsm_opts} {params.phase} -o {params.out_base} -t {threads} {input.reads};"
+    "echo 'Running command: hifiasm {params.other_hfsm_opts} {params.teloseq} {params.phase}  -o {params.out_base} -t {threads} {input.reads}';"
+    "hifiasm {params.other_hfsm_opts}  {params.teloseq} {params.phase} -o {params.out_base} -t {threads} {input.reads};"
     "for i in {output.fastas}; do b=`basename $i \".fa\"`; ln -s $b.p_ctg.gfa $b.gfa; awk \'/^S/{{print \">\"$2\"\\n\"$3}}\' $b.gfa > $b.fa; Bandage image $b.gfa $b.gfa.png;done"
 
 

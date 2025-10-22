@@ -25,7 +25,6 @@ rule finalize:
     "{params.scripts_dir}get_final_tbl_mult.py -s {input.stats} -b {input.buscos} -m {input.merqs} > {output.output};"
     "{params.rmcmd}"
     "echo 'Pipeline completed';"
-    "sleep 4m"
 
 # rule get_report:
 #   input:
@@ -60,6 +59,30 @@ rule get_stats:
   shell:
     "{params.scripts_dir}fastalength {input.assembly} | {params.scripts_dir}Nseries.pl > {output.nseries};"
     "{params.scripts_dir}fasta-stats.py -f {input.assembly} -s {output.stats} -r {output.gaps};"
+    "sleep 4m"
+
+rule get_stats_gfa:
+  input:
+    #assembly_fa = "assembly.fa",
+    assembly_gfa = "assembly.gfa"
+  output:
+   # nseries =  "assembly.nseries.txt",
+    stats = "assembly.stats.txt",
+  params:
+    outbase = "assembly",
+    scripts_dir = scripts_dir,
+    params = " --discover-paths "
+  log:
+    "logs/" + str(date) + ".j%j.assembly_stats.out",
+    "logs/" + str(date) + ".j%j.assembly_stats.err"
+  benchmark:
+    "logs/" + str(date) + ".assembly_stats.benchmark.txt"
+  conda:
+    '../envs/gfastastats1.3.10.yaml'
+  threads: 1
+  shell:
+    #"{params.scripts_dir}fastalength {input.assembly_fa} | {params.scripts_dir}Nseries.pl > {output.nseries};"
+    "gfastats {params.params} --nstar-report {input.assembly_gfa} > {output.stats};"
     "sleep 4m"
 
 rule run_merqury:
@@ -103,7 +126,7 @@ rule run_busco:
     rmcmd = "echo 'Removing BUSCO run dir: busco'; \
             rm -r busco;" if keepfiles == True else "" 
   conda:
-    '../envs/busco5.5.0.yaml'
+    '../envs/busco6.0.0.yaml'
   threads: 8
   shell:
     "cd {params.out_path};" 
@@ -122,13 +145,14 @@ rule align_lr:
     align_opts = "ax",
     type = "map-ont",
     split = "",
-    compress_cmd = lambda wildcards: "samtools sort -@ " + str(config["Parameters"]["minimap2_cores"]) +" -o " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext +";" +\
+    compress_cmd = lambda wildcards: "samtools view -Sb - | " \
+                   "samtools sort -@ " + str(config["Parameters"]["minimap2_cores"]) +" -o " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext +";" +\
                    "samtools index -c " + wildcards.directory + "/mappings/" + wildcards.name + "_" + wildcards.ext 
   conda:
     "../envs/minimap2.24.yaml"
   threads: 4
   shell:
-    "minimap2 -{params.align_opts} {params.type}  {params.split} -t {threads} {input.genome} {input.reads} | {params.compress_cmd};"
+    "minimap2 -{params.align_opts} {params.type} {params.split} -t {threads} {input.genome} {input.reads} | {params.compress_cmd};"
 
 rule align_illumina:
   input:
@@ -188,7 +212,7 @@ rule pairtools_processing:
     name = 'assembly',
     rmcmd = "rm -r {params.tmpd};"
   conda:
-    "../envs/dovetail_tools.yaml"
+    "../envs/dovetail_tools_v2_R.yaml"
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH";
@@ -234,7 +258,7 @@ rule pairtools_processing_parse:
     tmpd = "tmp",
     name = 'assembly',
   conda:
-    "../envs/dovetail_tools.yaml"
+    "../envs/dovetail_tools_v2_R.yaml"
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH";
@@ -259,7 +283,7 @@ rule pairtools_processing_sort:
     tmpd = "tmp",  
     name = 'assembly',
   conda:
-    "../envs/dovetail_tools.yaml"
+    "../envs/dovetail_tools_v2_R.yaml"
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH";
@@ -281,7 +305,7 @@ rule pairtools_processing_dedup:
     tmpd = "tmp", 
     name = 'assembly',
   conda:
-    "../envs/dovetail_tools.yaml"
+    "../envs/dovetail_tools_v2_R.yaml"
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH";
@@ -305,7 +329,7 @@ rule pairtools_processing_split:
     tmpd = "tmp",   
     name = 'assembly',
   conda:
-    "../envs/dovetail_tools.yaml"
+    "../envs/dovetail_tools_v2_R.yaml"
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH";
@@ -314,13 +338,16 @@ rule pairtools_processing_split:
     --output-pairs {params.outd}/mapped.mq{params.mq}.{params.name}.pairs \
     --output-sam {params.tmpd}/mapped.PT.mq{params.mq}.{params.name}.sam 
     
-    samtools view -bS {params.tmpd}/mapped.PT.mq{params.mq}.{params.name}.sam | samtools sort -@ {threads} \
-    -o {output.mappedpt}; 
+    cis_pairs_dist.v03.R {params.outd}/mapped.mq{params.mq}.{params.name}.pairs ../{params.name}.mq{params.mq}
+   
+    samtools view -bS {params.tmpd}/mapped.PT.mq{params.mq}.{params.name}.sam > {params.tmpd}/tmp.mapped.PT.mq{params.mq}.{params.name}.bam 
+   
+    samtools sort -@ {threads} -m 20G {params.tmpd}/tmp.mapped.PT.mq{params.mq}.{params.name}.bam -o {output.mappedpt}; 
 
     samtools index -c -@ {threads} {output.mappedpt};
 
-    samtools sort -n -@ {threads} {output.mappedpt} -o {output.mappedptsort}
-
+    samtools sort -n -@ {threads} -m 20G {output.mappedpt} -o {output.mappedptsort}
+    
     echo pairtools done, now running {params.rmcmd}
     {params.rmcmd}
 
@@ -337,18 +364,19 @@ rule qc_statistics:
     assemblylength = "",
     deepseq = False,
     outd = "pairtools_out",
-    pslibstats = "HiC_QC_LibraryStats_extrapolated_mq40.txt"
+    pslibstats = "HiC_QC_LibraryStats_extrapolated_mq40.txt",
+    add_preseq_opts = ""
   conda:
-    "../envs/dovetail_tools.yaml"
+    "../envs/dovetail_tools_v2_R.yaml"
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH"; 
     # QC Library statistics
     get_qc.py -p {input.statmq} > {output.libstats};
- 
+    sleep 5m
   # preseq extrapolation and QC Library statistics
     if [ {params.deepseq} == "False" ]; then  
-    preseq lc_extrap -B -P -e 2.1e9 -s 1e8 -seg_len {params.assemblylength} \
+    preseq lc_extrap -B -P -e 2.1e9 -s 1e8 {params.add_preseq_opts}  -seg_len {params.assemblylength} \
     -o {params.outd}/mapped.PT.mq{wildcards.mq}.preseq {input.mapbam};
     get_qc_preseq.py -p {input.statmq} -d {params.outd}/mapped.PT.mq{wildcards.mq}.preseq \
     > {params.pslibstats};
@@ -393,18 +421,21 @@ rule read_screening:
 rule get_extension_gaps:
   input:
     sla = "assembly.fa" ,
-    gaps_bed = "gaps.bed"
   output:
+    gaps_bed = "gaps.bed",
     gaps = "gaps.bg"
   params:
     scripts_dir = "../scripts/"
+  conda:
+    '../envs/gfastastats1.3.10.yaml'
   shell:
     """
-    cat {input.gaps_bed} | {params.scripts_dir}/gap_bed2bedgraph.sh > {output.gaps} ;
+    gfastats -b gaps {input.sla} > {output.gaps_bed};
+    cat {output.gaps_bed}| {params.scripts_dir}/gap_bed2bedgraph.sh > {output.gaps} ;
     sleep 4m
     """
 
-rule get_extension_ont:
+rule get_extension_cov:
   input:
     sbam = "sorted.bam"
   output:
@@ -414,6 +445,43 @@ rule get_extension_ont:
   shell:
     """
     bedtools genomecov -bga -ibam {input.sbam}  > {output.ontcov}
+    """
+
+rule tidk_search:
+  input:
+    sla = "assembly.fa" 
+  output:
+    tel = "TTAGGG_telo.bg"
+  params:
+    outd = "out",
+    teloseq = "TTAGGG",
+    outname = "TTAGGG"
+  conda:
+    "../envs/tidk-0.2.65.yaml"
+  shell:
+    """
+    cd {params.outd}
+
+    tidk search -s {params.teloseq} -o {params.outname}  -e bedgraph --dir $PWD {input.sla}
+    
+    ln -s {params.outname}_telomeric_repeat_windows.bedgraph {output.tel}
+    
+    sleep 5m
+    """
+
+rule tidk_explore:
+  input:
+    sla = "assembly.fa" 
+  output:
+    tel = "telomeres.bg"
+  params:
+  conda:
+    "../envs/tidk-0.2.65.yaml"
+  shell:
+    """
+    cd {params.outd}
+
+    tidk explore -x 12 -m 5 {input.sla} > out.tidk_explore.txt
     """
 
 rule get_extension_telomeres:
@@ -440,3 +508,17 @@ rule get_extension_telomeres:
     egrep -v ^id telomeres/out_telomeric_locations.bedgraph | cut -f 1-4 > {output.tel}
     sleep 3m
     """
+
+rule generate_diploid:
+  input: 
+    hap1 = "assembly.hap1.fa",
+    hap2 = "assembly.hap2.fa"
+  output:
+    diploid = "assembly.diploid.fa"
+  shell:
+    """
+    cat {input.hap1} | sed 's/>/>H1_/' > {output.diploid}
+    cat {input.hap2} | sed 's/>/>H2_/' >> {output.diploid}
+    sleep 5m
+    """
+    

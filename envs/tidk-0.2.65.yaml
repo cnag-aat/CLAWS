@@ -1,0 +1,15 @@
+name: /software/assembly/conda/tidk-0.2.65
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - ca-certificates=2025.10.5=hbd8a1cb_0
+  - libgcc=15.2.0=h767d61c_7
+  - libgomp=15.2.0=h767d61c_7
+  - libstdcxx=15.2.0=h8f9b012_7
+  - openssl=3.5.4=h26f9b46_0
+  - tidk=0.2.65=h3dc2dae_0
+prefix: /software/assembly/conda/tidk-0.2.65

@@ -61,17 +61,17 @@ for file in args.stats:
     with open (file, 'r') as file:
       for line in file:
         if line.startswith('Contig N50'):
-          cn50 = line.split('\t')[-1].rstrip()
+          cn50 = line.split(': ')[-1].rstrip()
         if line.startswith('Contig L50'):
-          cl50 = line.split('\t')[-1].rstrip()
+          cl50 = line.split(': ')[-1].rstrip()
         if line.startswith('Scaffold N50'):
-          sn50 = line.split('\t')[-1].rstrip()
+          sn50 = line.split(': ')[-1].rstrip()
         if line.startswith('Scaffold L50'):
-          sl50 = line.split('\t')[-1].rstrip()
-        if line.startswith('Scaffold num_bp\t'):
-          len = line.split('\t')[-1].rstrip()
-        if line.startswith('Scaffold num_seq'):
-          seqs = line.split('\t')[-1].rstrip()
+          sl50 = line.split(': ')[-1].rstrip()
+        if line.startswith('Total scaffold length'):
+          len = line.split(': ')[-1].rstrip()
+        if line.startswith('# scaffolds'):
+          seqs = line.split(': ')[-1].rstrip()
     with open (buscos_dict[base], 'r') as busco_file:
       for line in busco_file:
         if line.startswith('	C:'):

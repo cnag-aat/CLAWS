@@ -1,0 +1,13 @@
+name: /software/assembly/conda/pretextgraph.0.0.9
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - libgcc=15.1.0=h767d61c_2
+  - libgomp=15.1.0=h767d61c_2
+  - libstdcxx=15.1.0=h8f9b012_2
+  - pretextgraph=0.0.9=h9948957_1
+prefix: /software/assembly/conda/pretextgraph.0.0.9

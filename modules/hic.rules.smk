@@ -34,6 +34,7 @@ rule run_yahs:
     agp = "yahs_scaffolds_final.agp"
   params:
     yahsdir = "s06.1_p05.1_HiC_scaffolding/",
+    contig_ec = " --no-contig-ec ",
     yahsopts = "",
     mq = 40,
     name = "assembly"
@@ -43,16 +44,17 @@ rule run_yahs:
     """
     mkdir -p {params.yahsdir} 
     cd {params.yahsdir}
-    yahs {input.sla} {params.yahsopts} {input.mappedptsort} 
+    yahs {input.sla} {params.contig_ec} {params.yahsopts} {input.mappedptsort} 
     ln -s {params.yahsdir}/yahs.out_scaffolds_final.fa {output.outyahs}
     ln -s {params.yahsdir}/yahs.out_scaffolds_final.agp {output.agp}
     """
 
 rule generate_pretext:
   input:
-    mapbam = "mapped.PT.mq40.bam"  
+    mapbam = "mapped.PT.mq10.bam"  
   output:
-    pret = "assembly_mq40.pretext", 
+    pret = "assembly_mq10.pretext",
+    hr_pret = "assembly_mq10.HR.pretext", 
     ptd = "snapshots/PTdonemq40.txt"
   params:
     scripts_dir = "../scripts",
@@ -66,10 +68,14 @@ rule generate_pretext:
     """
     export PATH="{params.scripts_dir}:$PATH;"
     mkdir -p {params.outd}/snapshots/three_wave_blue_green_yellow/
+    mkdir -p {params.outd}/snapshots/HR_three_wave_blue_green_yellow/
     cd {params.outd}/
 
     samtools view -@ {threads} -h {input.mapbam} | PretextMap -o {output.pret} \
     --sortby {params.sort} --sortorder descend --mapq {params.mq}
+
+    samtools view -@ {threads} -h {input.mapbam} | PretextMap -o {output.hr_pret} \
+    --sortby {params.sort} --sortorder descend --mapq {params.mq} --highRes   
 
     PretextSnapshot -m {output.pret}  --sequences "=full" \
     -o snapshots/three_wave_blue_green_yellow
@@ -77,9 +83,13 @@ rule generate_pretext:
     PretextSnapshot -m {output.pret} --sequences "=all" \
     -o snapshots/three_wave_blue_green_yellow
 
-    touch {output.ptd}    
+   # PretextSnapshot -m {output.hr_pret}  --sequences "=full" \
+    -o snapshots/HR_three_wave_blue_green_yellow
 
-    sleep 4m
+    #PretextSnapshot -m {output.hr_pret} --sequences "=all" \
+    -o snapshots/HR_three_wave_blue_green_yellow
+
+    touch {output.ptd}    
     """
 
 rule add_extensions_pretext:
@@ -87,34 +97,40 @@ rule add_extensions_pretext:
     tel = "telomeres.bg",
     gaps = "gaps.bg",
     pret = "assembly_mq.pretext",
+    hr_pret = "assembly_mq.HR.pretext",
     ontcov = "ONTcoverage.bg",
+    stats = "HiC_Final_LibraryStats_mq.txt"
   output:
-    pretext = "assembly_mq.extensions.pretext"
+    pretext = "assembly_mq.extensions.pretext",
+    hr_pretext = "assembly_mq.extensions.HR.pretext"
   params:
     scripts_dir = "../scripts",
     outd = "s06.1_p05.1_HiC_scaffolding",
     mq = 40,
   conda:
-    "../envs/pretext-suite0.0.2_plus_samtools1.6.yaml"
+    "../envs/PretextGraph0.0.9.yaml"
   shell:
     """
     export PATH="{params.scripts_dir}:$PATH;"
     cd {params.outd}
     cp {input.pret} {output.pretext}
+    cp {input.hr_pret} {output.hr_pretext}
+
 
     if [[ -s "{input.gaps}" ]]; then
-    cat {input.gaps} | PretextGraph -i {output.pretext} -n "GAPs"
+    cat {input.gaps} | PretextGraph -i {output.pretext} -n "gap"
+    cat {input.gaps} | PretextGraph -i {output.hr_pretext} -n "gap"
     fi
 
     if [[ -s "{input.tel}" ]]; then 
-    cat {input.tel} | PretextGraph -i {output.pretext} -n "TELOMERES"
+    cat {input.tel} | PretextGraph -i {output.pretext} -n "telomere"
+    cat {input.tel} | PretextGraph -i {output.hr_pretext} -n "telomere"
     fi
 
     if [[ -s "{input.ontcov}" ]]; then
-    cat {input.ontcov} | PretextGraph -i {output.pretext} -n "ONTcov" 
+    cat {input.ontcov} | PretextGraph -i {output.pretext} -n "coverage" 
+    cat {input.ontcov} | PretextGraph -i {output.hr_pretext} -n "coverage" 
     fi
-
-    sleep 4m
     """
 
 rule get_tpf:
@@ -131,7 +147,7 @@ rule get_tpf:
     "mkdir -p {params.dir}/run_yahs; cd {params.dir}/run_yahs;"
     "{params.scripts_dir}rapid_split.pl -fa yahs.out_scaffolds_final.fa;"
     "ln -s run_yahs/yahs.out_scaffolds_final.fa.tpf {output.tpf};"
-    "sleep 4m"
+    "sleep 5m;"
 
 
 

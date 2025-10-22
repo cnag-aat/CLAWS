@@ -31,7 +31,6 @@ if config["Parameters"]["run_purgedups"] == True:
       postpolish.append( working_dir + config["Inputs"]["Assemblies for postpolishing"][i] + "_run_purgedups/" + base_postpolish + ".pgd.fa")
       minimap2[base_postpolish] = i
 
-
 tigmint_assemblies = {}
 if config["Parameters"]["run_tigmint"] == True:
   for i in config["Inputs"]["Assemblies for postpolishing"]: 
@@ -48,7 +47,7 @@ if config["Parameters"]["run_tigmint"] == True:
 
       tigmint_assemblies[working_dir + step + "_Scaffolding_tigmint_ARKS_LINKS/"] = assembly
       base = os.path.splitext(os.path.basename(assembly))[0]
-      postpolish.append( working_dir + step + "_Scaffolding_tigmint_ARKS_LINKS/" + base + ".10X.scaffolds.fa")
+      postpolish.append( working_dir + step + "_Scaffolding_tigmint_ARKS_LINKS/" + base + ".10X.scffs.fa")
       if not os.path.exists(working_dir +step + "_Scaffolding_tigmint_ARKS_LINKS/logs"):
         os.makedirs(working_dir + step + "_Scaffolding_tigmint_ARKS_LINKS/logs")
 
@@ -57,6 +56,7 @@ asslength = {}
 pretext_files = []
 pretext_in = []
 tpf_files = []
+yahs_mq= config['HiC']["yahs_mq"]
 if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
   hic_out_dir = {}
   if config['HiC']['deepseq'] == False:
@@ -65,7 +65,6 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
     hic_assemblies[name] = i
     hic_out_dir[name] = config['Outputs']['hic_qc_dir']
   elif config["Parameters"]["run_yahs"]:
-    
     if config["Parameters"]["run_tigmint"] == False and config["Parameters"]["run_purgedups"] == False:
       for i in config["Inputs"]["Assemblies for postpolishing"]:
         name = os.path.splitext(os.path.basename(i))[0]
@@ -81,12 +80,10 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
           name = os.path.splitext(os.path.basename(i))[0]
           hic_assemblies[name] = i 
         elif config["Hifiasm"]["external_purging"] == False:
-          # for i in config["Inputs"]["Assemblies for postpolishing"]:
           if re.search("hfsm", i):
             name = os.path.splitext(os.path.basename(i))[0]
-          #     if re.search(".fasta", i) and not os.path.exists(os.path.dirname(i) + "/" + name + ".fa") and not os.path.exists(i):
-          #       os.symlink(i, os.path.dirname(i) + "/" + name + ".fa")
             hic_assemblies[name] = os.path.dirname(i) + "/" + name + ".fa"
+
     for i in config["Inputs"]["Assemblies for postpolishing"]:
       step = config["Inputs"]["Assemblies for postpolishing"][i]
       base = os.path.splitext(os.path.basename(i))[0]
@@ -102,7 +99,7 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
         if config["Parameters"]["run_tigmint"] == True and config["Parameters"]["run_purgedups"] == True:
           cstep = float(nstep) + 2
           step = "s0" + str(cstep) + "_" + step.split('_')[0].replace('s','p')
-          assembly =  working_dir + config["Inputs"]["Assemblies for postpolishing"][i] + "_run_purgedups/" + base + ".pgd.10X.scaffolds.fa"
+          assembly =  working_dir + config["Inputs"]["Assemblies for postpolishing"][i] + "_run_purgedups/" + base + ".pgd.10X.scffs.fa"
         elif config["Parameters"]["run_purgedups"] == True:
           cstep = float(nstep) + 1
           step = "s0" + str(cstep) + "_" + step.split('_')[0].replace('s','p')
@@ -110,11 +107,12 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
         elif config["Parameters"]["run_tigmint"] == True:
           cstep = float(nstep) + 1
           step = "s0" + str(cstep) + "_" + step.split('_')[0].replace('s','p')
-          assembly =  working_dir + config["Inputs"]["Assemblies for postpolishing"][i] + "_run_purgedups/" + base + ".10X.scaffolds.fa"
+          assembly =  working_dir + config["Inputs"]["Assemblies for postpolishing"][i] + "_run_purgedups/" + base + ".10X.scffs.fa"
       name = os.path.splitext(os.path.basename(assembly))[0]
       hic_out_dir[name] = working_dir + step + "_HiC_scaffolding/"
-      postpolish.append(hic_out_dir[name] + name + ".yhs_scffs.fa")
-      tpf_files.append(hic_out_dir[name] + name + ".yhs_scffs.fa.tpf")  
+      postpolish.append(hic_out_dir[name] + name + ".yhs_mq" + str(yahs_mq) + ".fa")
+      tpf_files.append(hic_out_dir[name] + name + ".yhs_mq" + str(yahs_mq) + ".fa.tpf")  
+
   curated_assemblies = {}
   for i in config["Inputs"]["Curated Assemblies"]:
     assembly = i     
@@ -122,6 +120,7 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
     curated_assemblies[name] = config["Inputs"]["Curated Assemblies"][i]
     hic_out_dir[name] = config["Inputs"]["Curated Assemblies"][i] + "/"
     tpf_files.append(hic_out_dir[name] + name + ".fa.tpf")
+  
   hic_bams = {}
   pretext_lrmap = {}
   for i in hic_out_dir:
@@ -130,10 +129,12 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
     pretext_lrmap[name] = hic_out_dir[i] + "mappings/" + name + "_minimap2.bam"
     if not os.path.exists(hic_out_dir[i] + "/logs"):
       os.makedirs(hic_out_dir[i] + "/logs")
-    if config['Parameters']['run_yahs'] and i not in curated_assemblies:
-      name = i + ".yhs_scffs"
-    elif i in curated_assemblies:
-      name = i
+      
+    if config['Parameters']['run_yahs']:  
+    # if config['Parameters']['run_yahs'] and i not in curated_assemblies:
+      name = i + ".yhs_mq" + str(yahs_mq)
+    # elif i in curated_assemblies:
+      # name = i
     hic_assemblies[name] = hic_out_dir[i] + name + ".fa"
     hic_bams[name] = hic_out_dir[i] + "mappings/" + name + ".full_hic.bam"
     pretext_lrmap[name] = hic_out_dir[i] + "mappings/" + name + "_minimap2.bam"
@@ -153,7 +154,7 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
           os.makedirs(os.path.dirname(hic_assemblies[i]) + "/out_pretext/logs")
 
 #1- Run purgedups 
-if config["Parameters"]["run_purgedups"] == True:
+if config["Parameters"]["run_purgedups"] == True or config["Hifiasm"]["external_purging"]:
   calcuts = ""
   if config["Purge_dups"]["calcuts_options"] != None:
     calcuts = config["Purge_dups"]["calcuts_options"]
@@ -161,7 +162,7 @@ if config["Parameters"]["run_purgedups"] == True:
   use rule purge_dups from purging_workflow with:
     input:
       assembly_in = lambda wildcards: input_assemblies[wildcards.dir + "/"],
-      reads = ont_reads,
+      reads = reads2assemble,
       mapping = "{dir}/mappings/{base_in}_minimap2.allreads.paf.gz"
     output:
       assembly_out = "{dir}/{base_in}.pgd.fa",
@@ -197,7 +198,7 @@ if config["Parameters"]["run_tigmint"] == True:
       assembly = lambda wildcards: tigmint_assemblies[wildcards.dir + "/"],
       reads = r10X_reads
     output:
-      scaffolded = "{dir}/{base_in}.10X.scaffolds.fa"
+      scaffolded = "{dir}/{base_in}.10X.scffs.fa"
     params:
       base = "{base_in}",
       dir = "{dir}",
@@ -215,8 +216,8 @@ if config["Parameters"]["run_tigmint"] == True:
       "{dir}/logs/" + str(date) + ".{base_in}.10X_scaffolding.benchmark.txt",
     threads: config["scaffolding_10X"]["tigmint_cores"]
 
+#3- Hi-C scaffolding
 if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
-
   use rule assembly_prepare from hic_workflow with:
     input:
       lambda wildcards: hic_assemblies[wildcards.name]
@@ -241,12 +242,14 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
         sla = lambda wildcards: hic_assemblies[wildcards.name],
         index = lambda wildcards: hic_assemblies[wildcards.name] + ".fai"
       output:
-        outyahs = "{directory}/{name}.yhs_scffs.fa",
-        agp = "{directory}/{name}.yhs_scffs.agp"  
+        outyahs = "{directory}/{name}.yhs_mq" + str(yahs_mq)+ ".fa",
+        agp = "{directory}/{name}.yhs_mq" + str(yahs_mq) + ".agp"  
       params:
         name = "{name}",
         yahsdir = "{directory}/run_yahs/",
         mq = config['HiC']["yahs_mq"],
+        contig_ec = " --no-contig-ec" if config['HiC']["yahs_contig_ec"] == False
+                    else "",
         yahsopts = config["HiC"]['yahs_opts'],
       log:
         "{directory}/logs/" + str(date) + ".j%j.rule_yahs.{name}.out",
@@ -256,11 +259,27 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
       threads:  config['HiC']['yahs_cores']
 
 if config['HiC']['get_pretext']:
+  use rule get_tpf from hic_workflow with:
+    input:
+      fasta = "{directory}/{name}.fa"
+    output:
+      tpf = "{directory}/{name}.fa.tpf",
+    params:
+      scripts_dir = scripts_dir,
+      dir = lambda wildcards: wildcards.directory
+    log:
+      "{directory}/logs/" + str(date) + ".j%j.get_tpf.{name}.out",
+      "{directory}/logs/" + str(date) + ".j%j.get_tpf.{name}.err"
+    benchmark:
+      "{directory}/logs/" + str(date) + ".get_tpf.{name}.benchmark.txt"
+    threads:  2
+
   use rule generate_pretext from hic_workflow with:
     input:
       mapbam = "{directory}/pairtools_out/mapped.PT.mq{mq}.{name}.bam"
     output:
       pret = "{directory}/{name}_mq{mq}.pretext", 
+      hr_pret = "{directory}/{name}_mq{mq}.HR.pretext", 
       ptd = "{directory}/snapshots/PTdone{mq}.{name}.txt"
     wildcard_constraints:
       mq="\d+",
@@ -279,13 +298,15 @@ if config['HiC']['get_pretext']:
 
   use rule add_extensions_pretext from hic_workflow with:
     input:
-      tel = "{directory}/{name}.telomeres.bg",
+      tel = lambda wildcards: telo_bgs[wildcards.name],
       gaps = "{directory}/{name}.gaps.bg",
-      ontcov = lambda wildcards: "{directory}/{name}.ONTcoverage.bg" if len(minimap2) > 0 else "",
+      ontcov = lambda wildcards: "{directory}/{name}.LRcoverage.bg" if len(minimap2) > 0 else "",
       pret = "{directory}/{name}_mq{mq}.pretext",  
-      stats = "{directory}/pairtools_out/HiC_Final_LibraryStats_mq{mq}.{name}.txt"
+      hr_pret = "{directory}/{name}_mq{mq}.HR.pretext",
+      stats = "{directory}/HiC_Final_LibraryStats_mq{mq}.{name}.txt"
     output:
       pretext = "{directory}/{name}_mq{mq}.extensions.pretext", 
+      hr_pretext = "{directory}/{name}_mq{mq}.extensions.HR.pretext", 
     wildcard_constraints:
       mq="\d+",
     params:
@@ -298,18 +319,3 @@ if config['HiC']['get_pretext']:
     benchmark:
       "{directory}/logs/" + str(date) + ".rule_add_ext.{mq}.{name}.benchmark.txt"
     threads: 2
-  
-  use rule get_tpf from hic_workflow with:
-    input:
-      fasta = "{directory}/{name}.fa"
-    output:
-      tpf = "{directory}/{name}.fa.tpf",
-    params:
-      scripts_dir = scripts_dir,
-      dir = lambda wildcards: wildcards.directory
-    log:
-      "{directory}/logs/" + str(date) + ".j%j.get_tpf.{name}.out",
-      "{directory}/logs/" + str(date) + ".j%j.get_tpf.{name}.err"
-    benchmark:
-      "{directory}/logs/" + str(date) + ".get_tpf.{name}.benchmark.txt"
-    threads:  2

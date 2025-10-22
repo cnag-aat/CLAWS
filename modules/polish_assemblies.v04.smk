@@ -34,28 +34,30 @@ for assembly_in in inputs:
   if not os.path.exists(mappings_dir):
     os.makedirs(mappings_dir)
   make_logs.append(rundir)
+
   if hr > 0:
     hypo_dir = rundir + "hypo/"
     make_logs.append(hypo_dir)
     bwa[basename] = assembly_in
-    hypo_in[hypo_dir + basename + ".hp1.fasta"] = assembly_in
-    hypo_srmap[hypo_dir + basename + ".hp1.fasta"] = mappings_dir + basename + "_bwa.bam"
+    hypo_in[hypo_dir + basename + ".hyp1.fasta"] = assembly_in
+    hypo_srmap[hypo_dir + basename + ".hyp1.fasta"] = mappings_dir + basename + "_bwa.bam"
 
     if config["Hypo"]["long_reads"]:
       minimap2[basename] = assembly_in
-      hypo_lrmap[hypo_dir + basename + ".hp1.fasta"] = mappings_dir + basename + "_minimap2.bam"
+      hypo_lrmap[hypo_dir + basename + ".hyp1.fasta"] = mappings_dir + basename + "_minimap2.bam"
     for i in range(1,hr):
-      file_name = basename + ".hp" + str(i) 
+      file_name = basename + ".hyp" + str(i) 
       bwa[file_name] = hypo_dir + file_name + ".fasta"    
       n=i+1
-      hypo_in[hypo_dir + basename + ".hp" + str(n) + ".fasta"] = hypo_dir + file_name + ".fasta"     
-      hypo_srmap[hypo_dir + basename + ".hp" + str(n) + ".fasta"] = mappings_dir + file_name + "_bwa.bam"
+      hypo_in[hypo_dir + basename + ".hyp" + str(n) + ".fasta"] = hypo_dir + file_name + ".fasta"     
+      hypo_srmap[hypo_dir + basename + ".yp" + str(n) + ".fasta"] = mappings_dir + file_name + "_bwa.bam"
 
       if config["Hypo"]["long_reads"]:
         minimap2[file_name] = hypo_dir + file_name + ".fasta"
-        hypo_lrmap[hypo_dir + basename + ".hp" + str(n) + ".fasta"] = mappings_dir + file_name + "_minimap2.bam"
+        hypo_lrmap[hypo_dir + basename + ".hyp" + str(n) + ".fasta"] = mappings_dir + file_name + "_minimap2.bam"
     for i in hypo_in:
       polished.append(i)
+
   if nir > 0 or nor > 0:
     nextpolish_dir = rundir + "nextpolish/"
     make_logs.append(nextpolish_dir)
@@ -76,6 +78,7 @@ for assembly_in in inputs:
 
   if nir >0:
     nir_base = basename
+
     if nor >0:
       nir_base += ".npo" + str(nor)
       nir_in[nextpolish_dir + nir_base + ".npi1_tmp.fa"] = nextpolish_dir + nir_base + ".fasta"
@@ -117,14 +120,14 @@ if hr > 0:
 
   use rule hypo from polish_workflow with:
     input:
-      genome = lambda wildcards: hypo_in[wildcards.directory + "hypo/" + wildcards.base + ".hp" + wildcards.param + ".fasta"],
-      lr_bam = lambda wildcards: expand(hypo_lrmap[wildcards.directory + "hypo/" + wildcards.base + ".hp" + wildcards.param + ".fasta"]) \
+      genome = lambda wildcards: hypo_in[wildcards.directory + "hypo/" + wildcards.base + ".hyp" + wildcards.param + ".fasta"],
+      lr_bam = lambda wildcards: expand(hypo_lrmap[wildcards.directory + "hypo/" + wildcards.base + ".hyp" + wildcards.param + ".fasta"]) \
                if config["Hypo"]["long_reads"] else [],
-      sr_bam = lambda wildcards: hypo_srmap[wildcards.directory + "hypo/" + wildcards.base + ".hp" + wildcards.param + ".fasta"],
+      sr_bam = lambda wildcards: hypo_srmap[wildcards.directory + "hypo/" + wildcards.base + ".hyp" + wildcards.param + ".fasta"],
       reads_file = [pe1_reads, pe2_reads] if r10X_reads == None else [r10X_reads],
       cov_script = scripts_dir + "get_cov.py"       
     output:
-      polished ="{directory}hypo/{base}.hp{param}.fasta"
+      polished ="{directory}hypo/{base}.hyp{param}.fasta"
     params:
       genome_size = config["Parameters"]["genome_size"],
       cov = config["Hypo"]["illumina coverage"],
@@ -134,21 +137,21 @@ if hr > 0:
     wildcard_constraints:
       param="\d+"
     log:
-      "{directory}hypo/logs/" + str(date) + ".j%j.{base}.hp{param}.out",
-      "{directory}hypo/logs/" + str(date) + ".j%j.{base}.hp{param}.err",
+      "{directory}hypo/logs/" + str(date) + ".j%j.{base}.hyp{param}.out",
+      "{directory}hypo/logs/" + str(date) + ".j%j.{base}.hyp{param}.err",
     benchmark:
-      "{directory}hypo/logs/" + str(date) + ".{base}.hp{param}.benchmark.txt"
+      "{directory}hypo/logs/" + str(date) + ".{base}.hyp{param}.benchmark.txt"
     threads: config["Parameters"]["hypo_cores"]
 
 if nor > 0:
   nextpolish_lrtype= ""
   if re.search("nano",config["Parameters"]["lr_type"],):
     nextpolish_lrtype = "ont"
-  elif re.match("pacbio-corr", config["Parameters"]["lr_type"]):
-    nextpolish_lrtype = "hifi"
-  elif re.match("pacbio-raw", config["Parameters"]["lr_type"], ):
+  elif re.match("pacbio-raw", config["Parameters"]["lr_type"]):
     nextpolish_lrtype = "clr"
-  
+  elif re.search("pacbio", config["Parameters"]["lr_type"], ):
+    nextpolish_lrtype = "hifi"
+
   use rule nextpolish_lr from polish_workflow with:
     input:
       genome = lambda wildcards: nor_in[wildcards.directory + "nextpolish/" + wildcards.base + ".npo" + wildcards.param + ".fasta"],
@@ -172,9 +175,9 @@ use rule nextpolish_sr from polish_workflow with:
     genome = lambda wildcards: nir_in[wildcards.directory + "/nextpolish/" + wildcards.base + ".npi" + wildcards.param ],
     bam =   lambda wildcards: nir_map[wildcards.directory + "/nextpolish/" + wildcards.base + ".npi" + wildcards.param ]
   output:
-    polished = "{directory}/nextpolish/{base}.nextpolish_ill{param}"
+    polished = "{directory}/nextpolish/{base}.npi{param}"
   params:
-    task = lambda wildcards: tasks[wildcards.directory + "/nextpolish/" + wildcards.base + ".nextpolish_ill" + wildcards.param],
+    task = lambda wildcards: tasks[wildcards.directory + "/nextpolish/" + wildcards.base + ".npi" + wildcards.param],
     path = "/software/assembly/easybuild/software/NextPolish/1.4.1-GCC-11.2.0"
   log:
     "{directory}/nextpolish/logs/" + str(date) + ".j%j.{base}.nextpolish_sr{param}.out",
@@ -182,4 +185,3 @@ use rule nextpolish_sr from polish_workflow with:
   benchmark:
     "{directory}/nextpolish/logs/" + str(date) + ".{base}.nextpolish_sr{param}.benchmark.txt",
   threads:  config["Parameters"]["nextpolish_cores"]
-
