@@ -33,6 +33,7 @@ StatsFiles = []
 telo_bgs = {}
 hap1_files = {}
 hap2_files = {}
+diploid_fasta = ""
 telomeres = []
 MerqurySummaries = []
 MerquryQV = []
@@ -123,32 +124,33 @@ for file in assemblies:
     MerqurySummaries.append(merqdir + "/" + fullbase + ".haps.completeness.stats")
     MerquryQV.append(merqdir + "/" + fullbase + ".haps.qv")
     MerquryDups.append(merqdir + "/" + fullbase +  ".haps.false_duplications.txt")
-
+    
     if "hap" in file:
       if "yhs" in fullbase or ass_base in curated_assemblies:
         if "hap1" in file:
           hap1_files[ev_dir + "/diploid/" + fullbase] = file
         elif "hap2" in file:
           hap2_files[ev_dir + "/diploid/" + fullbase] = file
-        if not os.path.exists(ev_dir + "/diploid/logs/"):
-           os.makedirs(ev_dir + "/diploid/logs")
-        diploid_fasta = ev_dir + "/diploid/" + fullbase + ".diploid.fa"
-        if config["Parameters"]["telo_repeat"]:
-          telo_bgs[fullbase + ".diploid"] = ev_dir + "/diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg"
-          telomeres.append(ev_dir + "/diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg")
-        in_files[ev_dir + "/diploid/" + fullbase + ".diploid" ] = diploid_fasta
-        hic_assemblies[fullbase + ".diploid"] = diploid_fasta
-        pretext_lrmap[fullbase + ".diploid"] = ev_dir + "/diploid/mappings/" + fullbase + ".diploid_minimap2.bam"
-        hic_bams[fullbase + ".diploid"] = ev_dir + "/diploid/mappings/" + fullbase + ".diploid.full_hic.bam"
-        asslength[fullbase + ".diploid"] = ev_dir + "/diploid/"+ fullbase + ".diploid.genome"
-        pretext_in.append(diploid_fasta)
-        minimap2[fullbase + ".diploid"] = diploid_fasta
-        tpf_files.append(diploid_fasta + ".tpf")
+        if ev_dir + "/diploid/" + fullbase in hap1_files and ev_dir + "/diploid/" + fullbase in hap2_files:
+          if not os.path.exists(ev_dir + "/diploid/logs/"):
+            os.makedirs(ev_dir + "/diploid/logs")
+          diploid_fasta = ev_dir + "/diploid/" + fullbase + ".diploid.fa"
+          if config["Parameters"]["telo_repeat"]:
+            telo_bgs[fullbase + ".diploid"] = ev_dir + "/diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg"
+            telomeres.append(ev_dir + "/diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg")
+          in_files[ev_dir + "/diploid/" + fullbase + ".diploid" ] = diploid_fasta
+          hic_assemblies[fullbase + ".diploid"] = diploid_fasta
+          pretext_lrmap[fullbase + ".diploid"] = ev_dir + "/diploid/mappings/" + fullbase + ".diploid_minimap2.bam"
+          hic_bams[fullbase + ".diploid"] = ev_dir + "/diploid/mappings/" + fullbase + ".diploid.full_hic.bam"
+          asslength[fullbase + ".diploid"] = ev_dir + "/diploid/"+ fullbase + ".diploid.genome"
+          pretext_in.append(diploid_fasta)
+          minimap2[fullbase + ".diploid"] = diploid_fasta
+          tpf_files.append(diploid_fasta + ".tpf")
 
-        for mq in config['HiC']['MQ']:
-          pretext_files.append(ev_dir + "/diploid/in_pretext/" + fullbase + ".diploid_mq" + str(mq) + ".extensions.pretext")
-          if not os.path.exists(ev_dir + "/diploid/in_pretext/logs"):
-            os.makedirs(ev_dir + "/diploid/in_pretext/logs")
+          for mq in config['HiC']['MQ']:
+            pretext_files.append(ev_dir + "/diploid/in_pretext/" + fullbase + ".diploid_mq" + str(mq) + ".extensions.pretext")
+            if not os.path.exists(ev_dir + "/diploid/in_pretext/logs"):
+              os.makedirs(ev_dir + "/diploid/in_pretext/logs")
 
 #1- Perform alignments
 if len(bwa) >0:
@@ -517,16 +519,20 @@ if keepfiles == False:
     t = os.path.dirname(config["Finalize"]["Merqury db"]) + "/tmp_meryl/"
     if (os.path.exists(t)):
       rmcmd += "echo 'Deleting " + t + "'; rm -r " + t + ";"
+  if diploid_fasta:
+     assemblies.append(diploid_fasta)
   for i in assemblies:
     rundir = os.path.dirname(i) + "/"
-    if i not in ass_cleand:
-      ass_cleand.append(i) 
+    if rundir not in ass_cleand:
+      ass_cleand.append(rundir) 
       if os.path.exists(rundir + "mappings") and not i in pretext_in:
         rmcmd += "echo 'Deleting mappings in " + rundir + "mappings'; rm -r " + rundir +  "mappings;"
       elif i in pretext_in:
         if os.path.exists(rundir + "in_pretext/pairtools_out"):
+          rmcmd += "echo 'Deleting coverage bedgraphs in " + rundir + "in_pretext'; for i in  `find " + rundir + "in_pretext -name '*LRcoverage.bg'`; do rm $i; done;"
           rmcmd += "echo 'Deleting files in " + rundir + "in_pretext/pairtools_out'; rm -r " + rundir +  "in_pretext/pairtools_out;"
         if os.path.exists(rundir + "out_pretext/pairtools_out"):
+          rmcmd += "echo 'Deleting coverage bedgraphs in " + rundir + "out_pretext'; for i in  `find " + rundir + "out_pretext -name '*LRcoverage.bg'`; do rm $i; done;"
           rmcmd += "echo 'Deleting files in " + rundir + "out_pretext/pairtools_out'; rm -r " + rundir +  "out_pretext/pairtools_out;"
         if os.path.exists(rundir+"mappings"):
           rmcmd += "echo 'Deleting hic alignments in " + rundir + "mappings'; for i in  `find " + rundir + "mappings -name '*hic*'`; do rm $i; done;"
