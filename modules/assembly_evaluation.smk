@@ -31,6 +31,7 @@ evals_dir = {}
 BuscoSummaries = []
 StatsFiles = []
 telo_bgs = {}
+haps = {}
 hap1_files = {}
 hap2_files = {}
 diploid_fasta = ""
@@ -81,51 +82,43 @@ for file in assemblies:
   if config["Finalize"]["BUSCO lineage"]:
     BuscoSummaries.append(buscodir + ass_base + "." + buscodb + ".short_summary.txt")
 
-  if config["Finalize"]["Merqury db"] and not re.search("hap", file):
-    merqdir = evalassdir + "merqury/" + ass_base 
-    if not os.path.exists(merqdir) and config["Finalize"]["Merqury db"]:
-      os.makedirs(merqdir)
-    MerqurySummaries.append(merqdir + "/" + ass_base + ".completeness.stats")
-    MerquryQV.append(merqdir + "/" + ass_base + ".qv")
-    MerquryDups.append(merqdir + "/" + ass_base + ".false_duplications.txt")
-  elif config["Finalize"]["Merqury db"] and re.search("hap", file):
-    hap_base = ass_base.split(".hap")
-    fullbase = hap_base[0]  
-    if not re.search("pgd", file) and not re.search("yhs", file):
-      merqdir = evalassdir + "merqury/" + hap_base[0] + ".haps"
-      if evalassdir + hap_base[0] + ".haps" in in_files and not file in in_files[evalassdir + hap_base[0] + ".haps"]:
-        in_files[evalassdir + hap_base[0] + ".haps"].append(file)
-      elif not evalassdir + hap_base[0] + ".haps" in in_files:
-        in_files[evalassdir + hap_base[0] + ".haps"] = [file]
-    else:
-      hap_end = hap_base[1].split(".")
-      for i in range(1, len(hap_end)):
-        fullbase+= "." + hap_end[i]
-      step_dir = os.path.basename(evalassdir.rstrip("/"))
-      if re.search("^s([0-9]+)\.([0-9]+)_p([0-9]+)", step_dir):
-        hap_step = step_dir.split(".")
-        tmp_step = hap_step[1].split("_")
-        if len(hap_end) == 3:
-          tmp2 = hap_step[2].split("_")[1:]
-          merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps/merqury/" + fullbase + ".haps"
-          ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps"
-        else:
-          merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps/merqury/" + fullbase + ".haps"
-          ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps"
-      else:
-         merqdir = evalassdir + "merqury/" +  fullbase + ".haps"
-         ev_dir = evalassdir.rstrip("/")
-      if not os.path.exists(ev_dir + "/logs/"):
-        os.makedirs(ev_dir + "/logs/")
-      if ev_dir + "/" + fullbase + ".haps" in in_files and not file in in_files[ev_dir + "/" + fullbase + ".haps"]:
-        in_files[ev_dir + "/" + fullbase + ".haps"].append(file)
-      elif not ev_dir + "/" + fullbase + ".haps" in in_files:
-        in_files[ev_dir+ "/" + fullbase + ".haps"] = [file]
-    MerqurySummaries.append(merqdir + "/" + fullbase + ".haps.completeness.stats")
-    MerquryQV.append(merqdir + "/" + fullbase + ".haps.qv")
-    MerquryDups.append(merqdir + "/" + fullbase +  ".haps.false_duplications.txt")
-    
+  if config["Finalize"]["Merqury db"]:
     if "hap" in file:
+      hap_base = ass_base.split(".hap")
+      fullbase = hap_base[0] 
+      if not re.search("pgd", file) and not re.search("yhs", file):
+        merqdir = evalassdir + "merqury/" + hap_base[0] + ".haps"
+        if evalassdir + hap_base[0] + ".haps" in in_files and not file in in_files[evalassdir + hap_base[0] + ".haps"]:
+          in_files[evalassdir + hap_base[0] + ".haps"].append(file)
+        elif not evalassdir + hap_base[0] + ".haps" in in_files:
+          in_files[evalassdir + hap_base[0] + ".haps"] = [file]
+      else:
+        hap_end = hap_base[1].split(".")
+        for i in range(1, len(hap_end)):
+          fullbase+= "." + hap_end[i]
+        step_dir = os.path.basename(evalassdir.rstrip("/"))
+        if re.search("^s([0-9]+)\.([0-9]+)_p([0-9]+)", step_dir):
+          hap_step = step_dir.split(".")
+          tmp_step = hap_step[1].split("_")
+          if len(hap_end) == 3:
+            tmp2 = hap_step[2].split("_")[1:]
+            merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps/merqury/" + fullbase + ".haps"
+            ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps"
+          else:
+            merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps/merqury/" + fullbase + ".haps"
+            ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps"
+        else:
+           merqdir = evalassdir + "merqury/" +  fullbase + ".haps"
+           ev_dir = evalassdir.rstrip("/")
+        if not os.path.exists(ev_dir + "/logs/"):
+          os.makedirs(ev_dir + "/logs/")
+        if ev_dir + "/" + fullbase + ".haps" in in_files and not file in in_files[ev_dir + "/" + fullbase + ".haps"]:
+          in_files[ev_dir + "/" + fullbase + ".haps"].append(file)
+          haps[merqdir + "/" + fullbase + ".haps"].append(file)
+        elif not ev_dir + "/" + fullbase + ".haps" in in_files:
+          in_files[ev_dir+ "/" + fullbase + ".haps"] = [file]
+          haps[merqdir + "/" + fullbase + ".haps"] = [file]
+   
       if "yhs" in fullbase or ass_base in curated_assemblies:
         if "hap1" in file:
           hap1_files[ev_dir + "/diploid/" + fullbase] = file
@@ -151,6 +144,31 @@ for file in assemblies:
             pretext_files.append(ev_dir + "/diploid/in_pretext/" + fullbase + ".diploid_mq" + str(mq) + ".extensions.pretext")
             if not os.path.exists(ev_dir + "/diploid/in_pretext/logs"):
               os.makedirs(ev_dir + "/diploid/in_pretext/logs")
+    else:
+      merqdir = evalassdir + "merqury/" + ass_base 
+      if not os.path.exists(merqdir) and config["Finalize"]["Merqury db"]:
+        os.makedirs(merqdir)
+      MerqurySummaries.append(merqdir + "/" + ass_base + ".completeness.stats")
+      MerquryQV.append(merqdir + "/" + ass_base + ".qv")
+      MerquryDups.append(merqdir + "/" + ass_base + ".false_duplications.txt")
+  
+for base in haps:
+  ploi = 0
+  for i in haps[base]:
+    if "hap1" in i:
+      ploi+= 1
+    elif "hap2" in i:
+      ploi+=1
+  if ploi == 2:
+    MerqurySummaries.append(base + ".completeness.stats")
+    MerquryQV.append(base + ".qv")
+    MerquryDups.append(base +  ".false_duplications.txt")
+  else:
+    dir = os.path.dirname(os.path.dirname(base))
+    name = os.path.splitext(os.path.basename(file))[0]
+    MerqurySummaries.append(dir + "/" + name + "/" + name + ".completeness.stats")
+    MerquryQV.append(dir + "/" + name + "/" + name + ".qv")
+    MerquryDups.append(dir + "/" + name + "/" + name +  ".false_duplications.txt")
 
 #1- Perform alignments
 if len(bwa) >0:
@@ -566,3 +584,4 @@ use rule finalize from eval_workflow with:
   conda:
     '../envs/ass_base.yaml'
   threads: 1
+  

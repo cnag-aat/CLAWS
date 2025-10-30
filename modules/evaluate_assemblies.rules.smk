@@ -334,6 +334,7 @@ rule pairtools_processing_split:
     """
     export PATH="{params.scripts_dir}:$PATH";
     threads_half=$(({threads}/2));
+    cd {params.outd};
     pairtools split --nproc-in $threads_half --nproc-out $threads_half {input.spsamdedup} \
     --output-pairs {params.outd}/mapped.mq{params.mq}.{params.name}.pairs \
     --output-sam {params.tmpd}/mapped.PT.mq{params.mq}.{params.name}.sam 

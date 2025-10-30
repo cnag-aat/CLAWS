@@ -1195,6 +1195,12 @@ class CreateConfigurationFile(object):
               args.assemblies_cur[m] = "s0" + str(cstep) + "_p" + nstep
               paths += 0.1
         
+        if args.hifi_dir:
+           require_pb()
+
+        if args.ont_dir:
+           require_ont()
+
         if args.hic_dir:
           args.hic_dir = os.path.abspath(args.hic_dir) + "/"          
           args.hic_wildcards = get_wildcards(args.hic_dir, args.hic_wildcards, '.1.fastq.gz')
