@@ -144,9 +144,8 @@ rule get_tpf:
   conda:
     "../envs/rapidcuration.yaml"
   shell:
-    "mkdir -p {params.dir}/run_yahs; cd {params.dir}/run_yahs;"
-    "{params.scripts_dir}rapid_split.pl -fa yahs.out_scaffolds_final.fa;"
-    "ln -s run_yahs/yahs.out_scaffolds_final.fa.tpf {output.tpf};"
+    "cd {params.dir};"
+    "{params.scripts_dir}rapid_split.pl -fa $(basename {input.fasta});"
     "sleep 5m;"
 
 

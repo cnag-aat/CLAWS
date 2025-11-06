@@ -387,22 +387,6 @@ if len(hic_assemblies) > 0:
       benchmark:
         "{directory}/logs/" + str(date) + ".rule_gaps.{name}.benchmark.txt"
       threads:  1
-    
-    use rule tidk_search from eval_workflow with:
-      input:
-        sla = lambda wildcards: in_files[wildcards.directory + "/" + wildcards.name],
-      output:
-        tel = "{directory}/telomeres/{name}." + config["Parameters"]["telo_repeat"] + "_telo.bg"
-      params:
-        outd = "{directory}/telomeres/",
-        teloseq = config["Parameters"]["telo_repeat"],
-        outname = "{name}." + config["Parameters"]["telo_repeat"]
-      log:
-        "{directory}/logs/" + str(date) + ".j%j.rule_telo_search.{name}.out",
-        "{directory}/logs/" + str(date) + ".j%j.rule_telo_search.{name}.err"
-      benchmark:
-        "{directory}/logs/" + str(date) + ".rule_telo_search.{name}.benchmark.txt"
-      threads:  2
 
     if len(minimap2) > 0:
       use rule get_extension_cov from eval_workflow with:
@@ -430,6 +414,23 @@ if len(hic_assemblies) > 0:
       "{directory}/logs/" + str(date) + ".rule_get_diploid.{name}.benchmark.txt",
 
 #2- Run evaluations
+
+use rule tidk_search from eval_workflow with:
+  input:
+    sla = lambda wildcards: in_files[wildcards.directory + "/" + wildcards.name],
+  output:
+    tel = "{directory}/telomeres/{name}." + config["Parameters"]["telo_repeat"] + "_telo.bg"
+  params:
+    outd = "{directory}/telomeres/",
+    teloseq = config["Parameters"]["telo_repeat"],
+    outname = "{name}." + config["Parameters"]["telo_repeat"]
+  log:
+    "{directory}/logs/" + str(date) + ".j%j.rule_telo_search.{name}.out",
+    "{directory}/logs/" + str(date) + ".j%j.rule_telo_search.{name}.err"
+  benchmark:
+    "{directory}/logs/" + str(date) + ".rule_telo_search.{name}.benchmark.txt"
+  threads:  2
+
 use rule get_stats_gfa from eval_workflow with:
   input:
     #assembly_fa =  lambda wildcards: in_files[eval_dir + wildcards.dir + "/" + wildcards.buscobase],
@@ -558,7 +559,8 @@ if keepfiles == False:
         rmcmd += "echo 'Deleting " + rundir + "hypo/aux;'; rm -r " + rundir + "/hypo/aux;"
   for i in reads_loc:
     if "_bam.fastq" in i:
-      rmcmd += "echo 'Deleting " + i + ";'; rm -r " + i + ";"  
+      if os.path.exists(reads_loc[i]):
+        rmcmd += "echo 'Deleting " + reads_loc[i] + ";'; rm -r " + reads_loc[i] + ";"  
 
 use rule finalize from eval_workflow with:
   input:

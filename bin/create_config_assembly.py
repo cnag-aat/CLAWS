@@ -1198,7 +1198,7 @@ class CreateConfigurationFile(object):
         if args.hifi_dir:
            require_pb()
 
-        if args.ont_dir:
+        if args.ONT_dir:
            require_ont()
 
         if args.hic_dir:
@@ -1473,6 +1473,7 @@ class CreateConfigurationFile(object):
           args.busco_time = "48:00:00"
           args.busco_qos = "vlong"
           args.busco_mem = "150G"
+          args.purgedups_time = "12:00:00"
           if args.nextdenovo_type == "local":
             args.nextdenovo_time = "500:00:00"
            

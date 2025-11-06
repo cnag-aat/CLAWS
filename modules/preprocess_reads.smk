@@ -384,7 +384,7 @@ if len(longranger_inputs) > 0:
 if config["Outputs"]["preprocess_lr"]:
   use rule nanoplot from preprocess_workflow with:
     input:
-      reads = lambda wildcards: lr_reads[wildcards.prefix]
+      fastq = lambda wildcards: lr_reads[wildcards.prefix]
     output:
       stats = report(config["Outputs"]["preprocess_lr"] + "nanostats/{prefix}/NanoStats.txt",
           caption="../report/nanostats.rst",
