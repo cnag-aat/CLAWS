@@ -479,114 +479,119 @@ Wildcards:
 
 # Changes made to v3.0:
 
- New options to provide Hifi reads have been implemented: 
+1. Assembly nomenclature
 
-  --hifi-reads: file with all the HiFi reads It can be either in fastq, fasta or bam format.
+	Nomenclature: hypo is now hyp
 
-  --hifi-dir: directory where the hifi reads are stored. In this case, the files need to be in fastq format.  
+	Add mq to yahs name
 
-ONT reads can now also be in .bam format 
+	Basename has been added as prefix for the assemblies
 
-Illumina reads suffix can now be "_1.fastq.gz" and ".R1.fastq.gz" or ".1.fastq.gz" (only the latter used to be possible in previous versions of CLAWS) 
+2. Behaviour changes:
+   
+	New options to provide Hifi reads have been implemented: 
 
-Meryl_dbs can now be built on "hifi" data if specified with "--meryl-reads" and/or with " –lr-type pacbio-hifi" option. 
+  		``--hifi-reads:`` file with all the HiFi reads It can be either in fastq, fasta or bam format.
 
-Fasta-stats has been replaced by gfastats 
+  		``--hifi-dir:`` directory where the hifi reads are stored. In this case, the files need to be in fastq format.  
 
-Polishing and filtlong have been turned off if long-read type is hifi reads.  
+	ONT reads can now also be in .bam format 
 
-Hifiasm expects only 2 haps output if no phasing and as many haps as given ploidy if phasing. 
+	Illumina reads suffix can now be "_1.fastq.gz" and ".R1.fastq.gz" or ".1.fastq.gz" (only the latter used to be possible in previous versions of CLAWS) 
 
-Busco version has been updated to v6.0.0 and odb12 databases 
+	Meryl_dbs can now be built on "hifi" data if specified with "--meryl-reads" and/or with " –lr-type pacbio-hifi" option. 
 
-Nomenclature: hypo is now hyp 
+	Fasta-stats has been replaced by gfastats 
 
-Change mq defaults to 0, 10 for pretext and 10 for yahs 
+	Polishing and filtlong have been turned off if long-read type is hifi reads.  
 
-Add mq to yahs name 
+	Hifiasm expects only 2 haps output if no phasing and as many haps as given ploidy if phasing. 
 
-New "add_preseq_opts" option 
+	Busco version has been updated to v6.0.0 and odb12 databases 
 
-New subsample hic rule, possible to turn it on for hic_qc with "--subsample-hic" option 
+	Change mq defaults to 0, 10 for pretext and 10 for yahs 
 
-Generation of plot for hic qc has been added 
+	New "add_preseq_opts" option 
 
---split-prefix option has been added to minimap2 for genomes larger than 4G 
+	New subsample hic rule, possible to turn it on for hic_qc with "--subsample-hic" option 
 
-.csi indexes are now made instead of .bai 
+	Generation of plot for hic qc has been added 
 
-Option "-no-contig-ec" is now default for yahs, breaking can be activated with the new "--yahs-contig-ec" option 
+	``--split-prefix`` option has been added to minimap2 for genomes larger than 4G 
 
-Bug that was not properly running merqury in haps mode for postassembly steps has been fixed.  
+	.csi indexes are now made instead of .bai 
 
-PretextGraph has now been updated to version 0.0.9 
+	Option "-no-contig-ec" is now default for yahs, breaking can be activated with the new "--yahs-contig-ec" option 
 
-New files have been added to the cleaning step: 
+	Bug that was not properly running merqury in haps mode for postassembly steps has been fixed.  
 
-- Pairtools_out directory 
+	PretextGraph has now been updated to version 0.0.9 
 
-- Hic alignments 
+	New files have been added to the cleaning step: 
 
-- Hifi temporary fastq when bam is given 
+		- Pairtools_out directory 
 
-- Long-read alignments against scaffolded assemblies are now kept 
+		- Hic alignments 
 
-HighrRes pretext files are now generated 
+		- Hifi temporary fastq when bam is given 
 
-Basename has been added as prefix for the assemblies 
+		- Long-read alignments against scaffolded assemblies are now kept 
 
-Tidk has been updated from v0.2.0 to 0.2.65 
+	HighrRes pretext files are now generated 
 
-Telomere string can now be given as option to the pipeline and it will be used both for hifiasm and for running tidk find on every assembly, in the evaluations directory.  
+	Tidk has been updated from v0.2.0 to 0.2.65 
+
+	Telomere string can now be given as option to the pipeline and it will be used both for hifiasm and for running tidk find on every assembly, in the evaluations directory.  
 
 # Changes made to v2.3: 
+
 1. Assembly nomenclature 
 
-Previous flye.assembly --> fl.asm 
+	Previous flye.assembly --> fl.asm 
 
-Previous nextdenovo.assembly --> nd.asm 
+	Previous nextdenovo.assembly --> nd.asm 
 
-Previous hypo --> hp 
+	Previous hypo --> hp 
 
-Previous nextpolish_ont --> npo 
+	Previous nextpolish_ont --> npo 
 
-Previous nextpolish_ill --> npi 
+	Previous nextpolish_ill --> npi 
 
-Previous purged --> pgd 
+	Previous purged --> pgd 
 
-Previous yahs_scaffolds_final --> yhs_scffs 
+	Previous yahs_scaffolds_final --> yhs_scffs 
 
 2. Versions
 
-Trim_galore version has been updated from 0.6.7 to 0.6.10 
+	Trim_galore version has been updated from 0.6.7 to 0.6.10 
 
-Flye version has been updated from 2.9.1 to 2.9.5 
+	Flye version has been updated from 2.9.1 to 2.9.5 
 
-Busco version has been updated from 5.4.0 to 5.5.0 
+	Busco version has been updated from 5.4.0 to 5.5.0 
 
-4. Behaviour changes 
+3. Behaviour changes 
 
-Genomescope default options have changed, from " -m 10000 " to " -m –1 " 
+    Genomescope default options have changed, from " -m 10000 " to " -m –1 " 
 
-Added --no-smudgeplot option to skip running smudgeplot if desired 
+	Added --no-smudgeplot option to skip running smudgeplot if desired 
 
-Hifiasm has been included 
+	Hifiasm has been included 
 
-If lr_type = pacbio-hifi, hifiasm will run without ont option.  
+	If lr_type = pacbio-hifi, hifiasm will run without ont option.  
 
-Purgedups can be optionally run on Hifiasm assemblies (option –purge-hifiasm). By default it will only scaffold the hifiasm assemblies 
+	Purgedups can be optionally run on Hifiasm assemblies (option –purge-hifiasm). By default it will only scaffold the hifiasm assemblies 
 
-Merqury will run hap1 and hap2 together 
+	Merqury will run hap1 and hap2 together 
 
-Busco output filenames contain now the name of the db used.  
+	Busco output filenames contain now the name of the db used.  
 
-Removed the generation of tmp file in rule align_lr 
+	Removed the generation of tmp file in rule align_lr 
 
-Align_hic rule is now using bwa-mem2 
+	Align_hic rule is now using bwa-mem2 
 
-Added optimized thread options to pairtools rules, thanks to Francisco 
+	Added optimized thread options to pairtools rules (thanks to Francisco)
 
-Sort option has been added to generate pretext rule (--sort-pretext, default is "nosort") 
+	Sort option has been added to generate pretext rule (--sort-pretext, default is "nosort") 
 
 
 # Changes made to v2.2: 
