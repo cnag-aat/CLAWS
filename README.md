@@ -481,11 +481,9 @@ Wildcards:
 
  New options to provide Hifi reads have been implemented: 
 
-  --hifi-reads HIFI_READS 
+  --hifi-reads: file with all the HiFi reads It can be either in fastq, fasta or bam format.
 
-                        File with all the HiFi reads It can be either in fastq, fasta or bam format. De 
-
-  --hifi-dir HIFI_DIR   Directory where the hifi reads are stored. In this case, the files need to be in fastq format.  
+  --hifi-dir: directory where the hifi reads are stored. In this case, the files need to be in fastq format.  
 
 ONT reads can now also be in .bam format 
 
