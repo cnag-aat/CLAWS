@@ -1,7 +1,8 @@
 # CLAWS (CNAG's Long-read Assembly Workflow in Snakemake)
  Snakemake Pipeline used for de novo genome assembly @CNAG. It has been developed for Snakemake v6.0.5.
 
-It accepts Oxford Nanopore Technologies (ONT) reads, PacBio HFi reads, illumina paired-end data, illumina 10X data and Hi-C reads. It does the preprocessing of the reads, assembly, polishing, purge_dups, scaffodling and different evaluation steps. By default it will preprocess the reads, run Flye + Hypo + purge_dups + yahs and evaluate the resulting assemblies with BUSCO, MERQURY, Nseries and assembly_stats. It needs a config file and a spec file (json file with instructions on which resources should slurm use for each of the jobs). Both files are created by the script "create_config_assembly.py" that is located in the bin directory. To check all the options accepted by the script, do:
+It accepts Oxford Nanopore Technologies (ONT) reads, PacBio HFi reads, illumina paired-end data, illumina 10X data and Hi-C reads. It does the preprocessing of the reads, assembly, polishing, purge_dups, scaffolding, different evaluation steps and generation of pretext files for curation. Default behavior is to preprocess the reads, assemble with (1. Flye + hypo + purgedups + yahs) and (2. Hifiasm + yahs), evaluate the resulting assemblies with BUSCO, MERQURY and gfastats and produce high and low resolution pretext maps with mq10 and mq0.
+It needs a config file and a spec file (json file with instructions on which resources should slurm use for each of the jobs). Both files are created by the script "create_config_assembly.py" that is located in the bin directory. To check all the options accepted by the script, do:
 
 ```
 bin/create_config_assembly.py -h
@@ -32,37 +33,29 @@ If you do so, it will look for all the files in the directory that end in '.fast
 
 - Run filtlong with the default or specified parameters. 
 
-- Use the resulting file for assembly, polishing and/or purging.
+- Use the resulting file for assembly, polishing and/or purging, as well as for building the meryldb.
 
 You can also specify the basenames of the files that you want to use with the ``--ont-list `` option. In this case, the pipeline will use the wildcards that you're providing instead of merging all the files in the directory.
 
 1.2 Using the option ```--ont-reads {FILE}``` in create_config_assembly.py.
 
-If you do so, it will consider that you already have all the reads in one file and will:  
+File with all the ONT reads. It can either be in fastq, fasta or bam format. It will be filtered by filtlong and the resulting file will be used for assembly, polishing, purging and building a kmer database.
 
-- Run filtlong with the default or specified parameters.
+### 2-Pacbio HiFi data
 
-- Use the resulting file for assembly, polishing and/or purging.
+2.1 Using the option ``--hifi-dir {DIR}`` in create_config_assembly.py.
 
-1.3 Using the option ```--ont-filt {FILE}```. It will use this file as the output from filtlong. Hence, it will skip the preprocessing steps and directly use it for assembly, polishing and/or purging. 
+If you do so, it will look for all the files in the directory that end in '.fastq.gz' and will add the basenames to "ONT_wildcards". These wildcards will be processed by the pipeline that will:
 
+- Concatenate all the files into a single file
 
+- Use the resulting file for assembly, polishing and/or purging, as well as for building the meryldb.
 
-### 2-Illumina 10X-linked data
+You can also specify the basenames of the files that you want to use with the ``--hifi-list `` option. In this case, the pipeline will use the wildcards that you're providing instead of merging all the files in the directory.
 
-2.1 Using the  ```--raw-10X {DIR:list}``` option. 
+1.2 Using the option ```--hifi-reads {FILE}``` in create_config_assembly.py.
 
-Dictionary with 10X raw read directories, it has to be the mkfastq dir. You must specify as well the sampleIDs from this run. Example: '{"mkfastq-                        dir":"sample1,sample2,sample3"}'...
-
-It will take each basename in the list to get the fastqs from the corresponding directory and run longranger on each sample. Afterwards, it will build meryldbs for each "barcoded" file. Finally, it will concatenate all the meryldbs and "barcoded" files. Resulting "barcoded" file will be used for polishing. 
-
-2.2 Using the ``--processed-10X {DIR}`` parameter. 
-
-This directory can already be there or be produced by the pipeline as described in step 2.1. Once all the "barcoded" fastq files are there, meryldbs will be built for each "barcoded" file.  Finally, it will concatenate all the meryldbs and "barcoded" files. Resulting "barcoded" file will be used for polishing. 
-
-2.3 Using the ``--10X`` option. 
-
-The argument to this is the path to the concatenated ".barcoded" file that needs to be used for polishing. If the pre-concatenated files are not given, meryldbs will be directly generated with this file, but it may run out of memory. 
+File with all the HiFi reads It can be either in fastq, fasta or bam format. It will be used for assembly, purging and building a meryldb.
 
 ### 3- Illumina short-read data
 
@@ -82,7 +75,27 @@ The argument to this is the path to the concatenated ".barcoded" file that needs
 
 3.3 Using the ``--pe1 {FILE} and --pe2 {FILE}`` options. That will consider that these are the paired files containing all the illumina reads ready to be used and will build meryldbs and polish with them.
 
-### 4- Input assemblies
+### 4- Hi-C data
+
+4.1 Using the ``--hic-dir {DIR}`` option, that will look for all the files in the directory that end in '.1.fastq.gz' and will add the basenames to "illumina_wildcards". These wildcards will be concatenated into a single file that can be used by the pipeline for phasing, scaffolding and contact map generation. 
+
+### 5-Illumina 10X-linked data
+
+5.1 Using the  ```--raw-10X {DIR:list}``` option. 
+
+Dictionary with 10X raw read directories, it has to be the mkfastq dir. You must specify as well the sampleIDs from this run. Example: '{"mkfastq-                        dir":"sample1,sample2,sample3"}'...
+
+It will take each basename in the list to get the fastqs from the corresponding directory and run longranger on each sample. Afterwards, it will build meryldbs for each "barcoded" file. Finally, it will concatenate all the meryldbs and "barcoded" files. Resulting "barcoded" file will be used for polishing. 
+
+5.2 Using the ``--processed-10X {DIR}`` parameter. 
+
+This directory can already be there or be produced by the pipeline as described in step 2.1. Once all the "barcoded" fastq files are there, meryldbs will be built for each "barcoded" file.  Finally, it will concatenate all the meryldbs and "barcoded" files. Resulting "barcoded" file will be used for polishing. 
+
+5.3 Using the ``--10X`` option. 
+
+The argument to this is the path to the concatenated ".barcoded" file that needs to be used for polishing. If the pre-concatenated files are not given, meryldbs will be directly generated with this file, but it may run out of memory. 
+
+### 6- Input assemblies
 
 If you want to polish an already assembled assembly, you can give it to the pipeline by using the option ``--assembly-in ASSEMBLY_IN [ASSEMBLY_IN ...]
                         Dictionary with assemblies that need to be polished but not assembled and directory where they should
@@ -113,107 +126,77 @@ To evaluate and produce the final pretext file on a curated assembly, use ``--cu
 
 - **Trimgalore:** By default it gives the ``--max_n 0 --gzip -q 20 --paired --retain_unpaired`` options, but it can be changed with the ``--trim-galore-opts `` argument. 
 
-``trim_galore -j {threads} {params.opts} {input.read1} {input.read2}``
-
 - **Filtlong:** it uses the Filtlong version installed in the path specified in the configfile. By default it gives the min_length and min_mean_q parameters, but extra parameters can be added with the ``--filtlong-opts`` option.
-
-``filtlong --min_length {params.minlen} --min_mean_q {params.min_mean_q} {params.opts} {input.reads} | pigz -p {threads} -c > {output.outreads}``
 	
-- **Build meryldb**: it uses the merqury conda environment specified in the configfile. It takes as argument the `--mery-k` value that needs to be estimated first for the genome size. It can run either on the illumina reads, the ont reads or both, default behaviour is both. 
-
-``meryl k={params.kmer} count output {output.out_dir} {input.fastq}``
+- **Build meryldb**: it uses the merqury conda environment specified in the configfile. It takes as argument the `--meryl-k` value that needs to be estimated first for the genome size. It can run either on the illumina reads, the ont reads or both, default behaviour is both. 
 	
-- Concat meryldbs: with the merqury conda environment specified in the configfile
+- **Align ONT (Minimap2):** it aligns the reads using minimap2 and outputs the alignment either in bam or in paf.gz formats. It uses the minimap2 conda environment specified in the configfile.
 
-``meryl union-sum output {output.meryl_all} {input.input_run}``
-	
-- **Align ONT (Minimap2):** it aligns the reads using minimap2 and outputs the alignment either in bam or in paf.gz formats. It uses the minimap2 conda environment specified in the configfile
-
-``minimap2 -{params.align_opts} -t {threads} {input.genome} {input.reads} ``
-
-- **Align Illumina (BWA-MEM):** it aligns the reads with BWA-mem and outputs a bam file
-
-``bwa mem -Y {params.options} -t {threads} {input.genome} {input.reads} | samtools view -Sb - | samtools sort -@ {threads} -o {output.mapping} -``
+- **Align Illumina (BWA-MEM):** it aligns the reads with BWA-mem and outputs a bam file.
 
 2- Assembly
 
-- **Flye (default)**. It is run by default, if you don't want the pipeline to run it, you can give `--no-flye` option when creating the config. It uses the conda environment specified in the config. By default it is set to 2 polishing iterations and gives the genome-size estimate that has been given when creating the config. Extra options can be provided with the `--flye-opts`.
+- **Hifiasm (default)**. It is run by default, if you don't want the pipeline to run it, you can give `--no-hifiasm` option when creating the config. It uses the conda environment specified in the config. It can run in phaisng mode if the option "--phase-hifiasm is given. Extra options can be provided with the `--other-hifiasm-opts`. If you want purgedups to be run on the output, please give the "purge-hifiasm" option. 
 
-``flye --{params.readtype} {input.reads} -o {params.outdir}out -t {threads} -i {params.pol_iterations} {params.other_flye_opts} ``
+- **Flye (default)**. It is run by default, if you don't want the pipeline to run it, you can give `--no-flye` option when creating the config. It uses the conda environment specified in the config. By default it is set to 2 polishing iterations and gives the genome-size estimate that has been given when creating the config. Extra options can be provided with the `--flye-opts`.
 	
 - **Nextdenovo (if ``run-nextdenovo``):** It uses the cluster module specified in the config. If nextdenovo option is turned on, the create_config script will also create the nextdenovo config file. Check the create_config help to see which options can be modified on it. 
 
-``nextDenovo {input.config}``
-
 3- Polishing
 
-- **Hypo (default):** It is the polisher that the pipeline uses by default, it can be turned off specifying ``--no-hypo`` when creating the config. If selected, the reads will be aligned in previous rules and then hypo will be run, it requires illumina data. It uses the conda environment specified in the config. 
-
-``hypo -r @short_reads.list.txt -d {input.genome} -b {input.sr_bam} -c {coverage} -s {params.genome_size} -B {input.lr_bam} -t {threads} -o {output.polished} -p {params.proc} {params.opts} ``
+- **Hypo (default):** It is the polisher that the pipeline uses by default, it can be turned off specifying ``--hypo-rounds 0`` when creating the config. If selected, the reads will be aligned in previous rules and then hypo will be run, it requires illumina data. It uses the conda environment specified in the config. It only runs for ont assemblies and it doesn't run after hifiasm. 
 	
 - **Nextpolish ont (if turned on):** to run nextpolish with ONT reads, specify ``--nextpolish-ont-rounds`` and the number of rounds you want to run of it. 
 
-``"python /apps/NEXTPOLISH/1.3.1/lib/nextpolish2.py -g {input.genome} -p {threads} -l lgs.fofn -r {params.lrtype} > {output.polished}``
-	
 - **Nextpolish illumina (if turned on):** to run nextpolish with ONT reads, specify ``--nextpolish-ill-rounds`` and the number of rounds you want to run of it. 
-
-``"python /apps/NEXTPOLISH/1.3.1/lib/nextpolish1.py -g {input.genome}  -p {threads} -s {input.bam} -t {params.task} > {output.polished}``
 
 4- Post-assembly
 
-- **Purge_dups (by default):** select ``--no-purgedups`` if you don't want to run it. If no manual cutoffs are given, it'll run purgedups with automatic cutoffs and then will rerun it selecting the mean cutoff as 0.75\*cov. It uses the version installed in the cluster module specified in the config. 
+- **Purge_dups (by default):** select ``--no-purgedups`` if you don't want to run it. If no manual cutoffs are given, it'll run purgedups with automatic cutoffs and then will rerun it selecting the mean cutoff as 0.75\*cov. It uses the version installed in the cluster module specified in the config.
+
+- **Yahs (by default):** select ``--no-yahs``if you do not want to run it. By default it uses mq10 and the no-contig-ec option, this can be changed by giving to the config the options "yahs-mq" and "yahs-contig-ec". "--yahs-opts" to change any other options.
 
 5- Evaluations
 	
-- **Merqury:** It runs on each 'terminal' assembly. This is, the base assembly and the resulting assembly from each branch of the pipeline. 
+- **Merqury:** It runs on each assembly produced by the pipeline. Hap1 and hap2 files are evaluated in the same run. 
 	
-- **Busco:** It can be run only in the terminal assemblies or on all the assemblies produced by the pipeline. It uses the conda environment specified in the config as well as the parameters specified. 
+- **Busco:** It uses the conda environment specified in the config as well as the parameters specified, you need to provide the lineage directory. 
 	
-- **Nseries:** This is run during the *finalize* on all the assemblies that are evaluated. After it, that rule combines the statistics produced by all the evaluation rules. 
+- **gfastastas:** 
 
 # Description of all options
 ```
- bin/create_config_assembly.py -h
-usage: create_configuration_file [-h] [--configFile configFile] [--specFile specFile] [--ndconfFile ndconfFile] [--concat-cores concat_cores]
-                                 [--genome-size genome_size] [--lr-type lr_type] [--basename base_name] [--species species] [--keep-intermediate]
-                                 [--preprocess-lr-step PREPROCESS_ONT_STEP] [--preprocess-10X-step PREPROCESS_10X_STEP]
-                                 [--preprocess-illumina-step PREPROCESS_ILLUMINA_STEP] [--preprocess-hic-step PREPROCESS_HIC_STEP]
-                                 [--flye-step FLYE_STEP] [--no-flye] [--nextdenovo-step NEXTDENOVO_STEP] [--run-nextdenovo]
-                                 [--nextpolish-cores nextpolish_cores] [--minimap2-cores minimap2_cores] [--bwa-cores bwa_cores]
-                                 [--hypo-cores hypo_cores] [--pairtools-cores pairtools_cores] [--busco-cores busco_cores]
-                                 [--nextpolish-ont-rounds nextpolish_ont_rounds] [--nextpolish-ill-rounds nextpolish_ill_rounds]
-                                 [--hypo-rounds hypo_rounds] [--longranger-cores longranger_cores] [--longranger-path longranger_path]
-                                 [--genomescope-opts genomescope_additional] [--no-purgedups] [--ploidy ploidy] [--run-tigmint] [--run-kraken2]
-                                 [--no-yahs] [--scripts-dir SCRIPTS_DIR] [--ont-reads ONT_READS] [--ont-dir ONT_DIR] [--ont-filt ONT_FILTERED]
-                                 [--pe1 PE1] [--pe2 PE2] [--processed-illumina PROCESSED_ILLUMINA] [--raw-10X RAW_10X [RAW_10X ...]]
-                                 [--processed-10X PROCESSED_10X] [--10X R10X] [--illumina-dir ILLUMINA_DIR]
-                                 [--assembly-in ASSEMBLY_IN [ASSEMBLY_IN ...]]
-                                 [--postpolish-assemblies POSTPOLISH_ASSEMBLIES [POSTPOLISH_ASSEMBLIES ...]]
-                                 [--curated-assemblies CURATED_ASSEMBLIES [CURATED_ASSEMBLIES ...]] [--hic-dir HIC_DIR]
-                                 [--pipeline-workdir PIPELINE_WORKDIR] [--filtlong-dir FILTLONG_DIR] [--concat-hic-dir CONCAT_HIC_DIR]
-                                 [--flye-dir FLYE_DIR] [--nextdenovo-dir NEXTDENOVO_DIR] [--flye-polishing-dir POLISH_FLYE_DIR]
-                                 [--nextdenovo-polishing-dir POLISH_NEXTDENOVO_DIR] [--eval-dir eval_dir] [--stats-out stats_out]
-                                 [--hic-qc-dir hic_qc_dir] [--filtlong-minlen filtlong_minlen] [--filtlong-min-mean-q filtlong_min_mean_q]
-                                 [--filtlong-opts filtlong_opts] [--kraken2-db kraken2_db] [--kraken2-kmer kraken2_kmers]
-                                 [--kraken2-opts additional_kraken2_opts] [--kraken2-cores kraken2_threads] [--trim-galore-opts trim_galore_opts]
-                                 [--trim-Illumina-cores Trim_Illumina_cores] [--flye-cores flye_cores] [--flye-polishing-iterations flye_pol_it]
-                                 [--other-flye-opts other_flye_opts] [--nextdenovo-cores nextdenovo_cores] [--nextdenovo-jobtype nextdenovo_type]
-                                 [--nextdenovo-task nextdenovo_task] [--nextdenovo-rewrite nextdenovo_rewrite]
-                                 [--nextdenovo-parallel_jobs nextdenovo_parallel_jobs] [--nextdenovo-minreadlen nextdenovo_minreadlen]
-                                 [--nextdenovo-seeddepth nextdenovo_seeddepth] [--nextdenovo-seedcutoff nextdenovo_seedcutoff]
-                                 [--nextdenovo-blocksize nextdenovo_blocksize] [--nextdenovo-pa-correction  nextdenovo_pa_correction]
-                                 [--nextdenovo-minimap_raw nextdenovo_minimap_raw] [--nextdenovo-minimap_cns nextdenovo_minimap_cns]
-                                 [--nextdenovo-minimap_map nextdenovo_minimap_map] [--nextdenovo-sort nextdenovo_sort]
-                                 [--nextdenovo-correction_opts nextdenovo_correction_opts] [--nextdenovo-nextgraph_opt nextdenovo_nextgraph_opt]
-                                 [--sr-cov ill_cov] [--hypo-proc hypo_processes] [--hypo-no-lr] [--hypo-opts hypo_opts]
-                                 [--purgedups-cores purgedups_cores] [--purgedups-calcuts-opts calcuts_opts] [--tigmint-cores tigmint_cores]
-                                 [--tigmint-opts tigmint_opts] [--hic-qc] [--no-pretext] [--assembly-qc assembly_qc] [--yahs-cores yahs_cores]
-                                 [--yahs-mq yahs_mq] [--yahs-opts yahs_opts] [--hic-map-opts hic_map_opts] [--mq mq [mq ...]]
-                                 [--hic-qc-assemblylen hic_qc_assemblylen] [--blast-cores blast_cores] [--hic-blastdb blastdb]
-                                 [--hic-readsblast hic_readsblast] [--no-final-evals] [--busco-lin busco_lineage] [--merqury-db merqury_db]
-                                 [--merqury-plot-opts merqury_plot_opts] [--meryl-k meryl_k] [--meryl-threads meryl_threads]
-                                 [--meryl-reads meryl_reads [meryl_reads ...]] [--ont-list ONT_wildcards] [--illumina-list illumina_wildcards]
-                                 [--r10X-list r10X_wildcards] [--hic-list hic_wildcards]
+CLAWS/bin/create_config_assembly.py
+usage: create_configuration_file [-h] [--configFile configFile] [--specFile specFile] [--ndconfFile ndconfFile] [--keep-intermediate] [--lr-type lr_type] [--basename base_name] [--species species]
+                                 [--genome-size genome_size] [--ploidy ploidy] [--telo telo_string] [--no-flye] [--no-hifiasm] [--run-nextdenovo] [--nextpolish-ont-rounds nextpolish_ont_rounds]
+                                 [--nextpolish-ill-rounds nextpolish_ill_rounds] [--hypo-rounds hypo_rounds] [--no-purgedups] [--no-yahs] [--no-smudgeplot] [--run-tigmint] [--run-kraken2]
+                                 [--genomescope-opts genomescope_additional] [--preprocess-lr-step PREPROCESS_LR_STEP] [--preprocess-10X-step PREPROCESS_10X_STEP]
+                                 [--preprocess-illumina-step PREPROCESS_ILLUMINA_STEP] [--preprocess-hic-step PREPROCESS_HIC_STEP] [--flye-step FLYE_STEP] [--hifiasm-step HIFIASM_STEP]
+                                 [--nextdenovo-step NEXTDENOVO_STEP] [--concat-cores concat_cores] [--minimap2-cores minimap2_cores] [--bwa-cores bwa_cores] [--hypo-cores hypo_cores]
+                                 [--nextpolish-cores nextpolish_cores] [--pairtools-parse-cores pairtools_parse_cores] [--pairtools-sort-cores pairtools_sort_cores]
+                                 [--pairtools-dedup-cores pairtools_dedup_cores] [--pairtools-split-cores pairtools_split_cores] [--busco-cores busco_cores] [--longranger-cores longranger_cores]
+                                 [--longranger-path longranger_path] [--scripts-dir SCRIPTS_DIR] [--ont-dir ONT_DIR] [--hifi-dir HIFI_DIR] [--illumina-dir ILLUMINA_DIR] [--hic-dir HIC_DIR]
+                                 [--raw-10X RAW_10X [RAW_10X ...]] [--ont-reads ONT_READS] [--hifi-reads HIFI_READS] [--pe1 PE1] [--pe2 PE2] [--10X R10X] [--processed-illumina PROCESSED_ILLUMINA]
+                                 [--processed-10X PROCESSED_10X] [--ont-filt ONT_FILTERED] [--assembly-in ASSEMBLY_IN [ASSEMBLY_IN ...]]
+                                 [--postpolish-assemblies POSTPOLISH_ASSEMBLIES [POSTPOLISH_ASSEMBLIES ...]] [--curated-assemblies CURATED_ASSEMBLIES [CURATED_ASSEMBLIES ...]]
+                                 [--pipeline-workdir PIPELINE_WORKDIR] [--preprocess-lr PREPROCESS_LR] [--concat-hic-dir CONCAT_HIC_DIR] [--flye-dir FLYE_DIR] [--nextdenovo-dir NEXTDENOVO_DIR]
+                                 [--hifiasm-dir HIFIASM_DIR] [--flye-polishing-dir POLISH_FLYE_DIR] [--nextdenovo-polishing-dir POLISH_NEXTDENOVO_DIR] [--eval-dir eval_dir] [--stats-out stats_out]
+                                 [--hic-qc-dir hic_qc_dir] [--filtlong-minlen filtlong_minlen] [--filtlong-min-mean-q filtlong_min_mean_q] [--filtlong-opts filtlong_opts]
+                                 [--trim-galore-opts trim_galore_opts] [--trim-Illumina-cores Trim_Illumina_cores] [--kraken2-db kraken2_db] [--kraken2-kmer kraken2_kmers]
+                                 [--kraken2-opts additional_kraken2_opts] [--kraken2-cores kraken2_threads] [--flye-cores flye_cores] [--flye-polishing-iterations flye_pol_it]
+                                 [--other-flye-opts other_flye_opts] [--hifiasm-cores hifiasm] [--other-hifiasm-opts other_hifiasm_opts] [--purge-hifiasm] [--phase-hifiasm]
+                                 [--nextdenovo-cores nextdenovo_cores] [--nextdenovo-jobtype nextdenovo_type] [--nextdenovo-task nextdenovo_task] [--nextdenovo-rewrite nextdenovo_rewrite]
+                                 [--nextdenovo-parallel_jobs nextdenovo_parallel_jobs] [--nextdenovo-minreadlen nextdenovo_minreadlen] [--nextdenovo-seeddepth nextdenovo_seeddepth]
+                                 [--nextdenovo-seedcutoff nextdenovo_seedcutoff] [--nextdenovo-blocksize nextdenovo_blocksize] [--nextdenovo-pa-correction  nextdenovo_pa_correction]
+                                 [--nextdenovo-minimap_raw nextdenovo_minimap_raw] [--nextdenovo-minimap_cns nextdenovo_minimap_cns] [--nextdenovo-minimap_map nextdenovo_minimap_map]
+                                 [--nextdenovo-sort nextdenovo_sort] [--nextdenovo-correction_opts nextdenovo_correction_opts] [--nextdenovo-nextgraph_opt nextdenovo_nextgraph_opt] [--sr-cov ill_cov]
+                                 [--hypo-proc hypo_processes] [--hypo-no-lr] [--hypo-opts hypo_opts] [--purgedups-cores purgedups_cores] [--purgedups-calcuts-opts calcuts_opts]
+                                 [--tigmint-cores tigmint_cores] [--tigmint-opts tigmint_opts] [--hic-qc] [--subsample-hic] [--add-preseq-opts ADD_PRESEQ_OPTS] [--no-pretext] [--sort-pretext SORT_PRETEXT]
+                                 [--assembly-qc assembly_qc] [--yahs-cores yahs_cores] [--yahs-mq yahs_mq] [--yahs-contig-ec] [--yahs-opts yahs_opts] [--hic-map-opts hic_map_opts] [--mq mq [mq ...]]
+                                 [--hic-qc-assemblylen hic_qc_assemblylen] [--blast-cores blast_cores] [--hic-blastdb blastdb] [--hic-readsblast hic_readsblast] [--no-final-evals]
+                                 [--busco-lin busco_lineage] [--merqury-db merqury_db] [--merqury-plot-opts merqury_plot_opts] [--meryl-k meryl_k] [--meryl-threads meryl_threads]
+                                 [--meryl-reads meryl_reads [meryl_reads ...]] [--ont-list ONT_wildcards] [--hifi-list hifi_wildcards] [--illumina-list illumina_wildcards] [--r10X-list r10X_wildcards]
+                                 [--hic-list hic_wildcards]
 
 Create a configuration json file for the assembly pipeline.
 
@@ -226,15 +209,31 @@ General Parameters:
   --specFile specFile   Cluster specifications JSON fileto be generated. Default assembly.spec
   --ndconfFile ndconfFile
                         Name pf the nextdenovo config file. Default nextdenovo.config
-  --concat-cores concat_cores
-                        Number of threads to concatenate reads and to run filtlong. Default 4
-  --genome-size genome_size
-                        Approximate genome size. Example: 615m or 2.6g. Default None
-  --lr-type lr_type     Type of long reads (options are flye read-type options). Default nano-hq
+  --keep-intermediate   Set this to True if you do not want intermediate files to be removed. Default False
+  --lr-type lr_type     Type of long reads (options are: pacbio-raw, pacbio-corr, pacbio-hifi, nano-raw, nano-corr, nano-hq). Default nano-hq
   --basename base_name  Base name for the project. Default None
   --species species     Name of the species to be assembled. Default None
-  --keep-intermediate   Set this to True if you do not want intermediate files to be removed. Default False
-  --preprocess-lr-step PREPROCESS_ONT_STEP
+  --genome-size genome_size
+                        Approximate genome size. Example: 615m or 2.6g. Default None
+  --ploidy ploidy       Expected ploidy. Default 2
+  --telo telo_string    Expected telomere string. Default None
+  --no-flye             Give this option if you do not want to run Flye.
+  --no-hifiasm          Give this option if you do not want to run Hifiasm.
+  --run-nextdenovo      Give this option if you do want to run Nextdenovo.
+  --nextpolish-ont-rounds nextpolish_ont_rounds
+                        Number of rounds to run the Nextpolish with ONT step. Default 0
+  --nextpolish-ill-rounds nextpolish_ill_rounds
+                        Number of rounds to run the Nextpolish with illumina step. Default 0
+  --hypo-rounds hypo_rounds
+                        Number of rounds to run the Hypostep. Default 1
+  --no-purgedups        Give this option if you do not want to run Purgedups on the Flye and Nextdenovo assemblies.
+  --no-yahs             Give this option if you do not want to run yahs.
+  --no-smudgeplot       Give this option if you do not want to run smudgeplot.
+  --run-tigmint         Give this option if you want to run the scaffolding with 10X reads step.
+  --run-kraken2         Give this option if you want to run Kraken2 on the input reads.
+  --genomescope-opts genomescope_additional
+                        Additional options to run Genomescope2 with. Default -m -1
+  --preprocess-lr-step PREPROCESS_LR_STEP
                         Step for preprocessing long-reads. Default 02.1
   --preprocess-10X-step PREPROCESS_10X_STEP
                         Step for preprocessing 10X reads. Default 02.2
@@ -244,83 +243,81 @@ General Parameters:
                         Step for preprocessing hic reads. Default 02.3
   --flye-step FLYE_STEP
                         Step for running flye. Default 03.1
-  --no-flye             Give this option if you do not want to run Flye.
+  --hifiasm-step HIFIASM_STEP
+                        Step for running hifiasm. Default 03.3
   --nextdenovo-step NEXTDENOVO_STEP
                         Step for running nextdenovo. Default 03.2
-  --run-nextdenovo      Give this option if you do want to run Nextdenovo.
-  --nextpolish-cores nextpolish_cores
-                        Number of threads to run the nextpolish step. Default 24
+  --concat-cores concat_cores
+                        Number of threads to concatenate reads and to run filtlong. Default 4
   --minimap2-cores minimap2_cores
                         Number of threads to run the alignment with minimap2. Default 32
   --bwa-cores bwa_cores
                         Number of threads to run the alignments with BWA-Mem2. Default 16
   --hypo-cores hypo_cores
                         Number of threads to run the hypo step. Default 24
-  --pairtools-cores pairtools_cores
-                        Number of threads to run the pairtools step. Default 100
+  --nextpolish-cores nextpolish_cores
+                        Number of threads to run the nextpolish step. Default 24
+  --pairtools-parse-cores pairtools_parse_cores
+                        Number of threads to run the pairtools parse step. Default 32
+  --pairtools-sort-cores pairtools_sort_cores
+                        Number of threads to run the pairtools sort step. Default 16
+  --pairtools-dedup-cores pairtools_dedup_cores
+                        Number of threads to run the pairtools dedup step. Default 8
+  --pairtools-split-cores pairtools_split_cores
+                        Number of threads to run the pairtools split step. Default 16
   --busco-cores busco_cores
                         Number of threads to run BUSCO. Default 32
-  --nextpolish-ont-rounds nextpolish_ont_rounds
-                        Number of rounds to run the Nextpolish with ONT step. Default 0
-  --nextpolish-ill-rounds nextpolish_ill_rounds
-                        Number of rounds to run the Nextpolish with illumina step. Default 0
-  --hypo-rounds hypo_rounds
-                        Number of rounds to run the Hypostep. Default 1
   --longranger-cores longranger_cores
                         Number of threads to run longranger. Default 16
   --longranger-path longranger_path
                         Path to longranger executable. Default /scratch/project/devel/aateam/src/10X/longranger-2.2.2
-  --genomescope-opts genomescope_additional
-                        Additional options to run Genomescope2 with. Default -m 10000
-  --no-purgedups        Give this option if you do not want to run Purgedups.
-  --ploidy ploidy       Expected ploidy. Default 2
-  --run-tigmint         Give this option if you want to run the scaffolding with 10X reads step.
-  --run-kraken2         Give this option if you want to run Kraken2 on the input reads.
-  --no-yahs             Give this option if you do not want to run yahs.
 
 Inputs:
   --scripts-dir SCRIPTS_DIR
-                        Directory with the different scripts for the pipeline. Default
-                        /software/assembly/pipelines/Assembly_pipeline/CLAWSv2.2/bin/../scripts/
-  --ont-reads ONT_READS
-                        File with all the ONT reads. Default None
+                        Directory with the different scripts for the pipeline. Default /software/assembly/pipelines/Assembly_pipeline/CLAWS/bin/../scripts/
   --ont-dir ONT_DIR     Directory where the ONT fastqs are stored. Default None
-  --ont-filt ONT_FILTERED
-                        File with the ONT reads after running filtlong on them. Default None
-  --pe1 PE1             File with the illumina paired-end fastqs, already trimmed, pair 1.
-  --pe2 PE2             File with the illumina paired-end fastqs, already trimmed, pair 2.
-  --processed-illumina PROCESSED_ILLUMINA
-                        Directory to Processed illumina reads. Already there or to be produced by the pipeline.
-  --raw-10X RAW_10X [RAW_10X ...]
-                        Dictionary with 10X raw read directories, it has to be the mkfastq dir. You must specify as well the sampleIDs from this run.
-                        Example: '{"mkfastq-dir":"sample1,sample2,sample3"}'...
-  --processed-10X PROCESSED_10X
-                        Directory to Processed 10X reads. Already there or to be produced by the pipeline.
-  --10X R10X            File with barcoded 10X reads in fastq.gz format, concatenated.
+  --hifi-dir HIFI_DIR   Directory where the hifi reads are stored. Default None
   --illumina-dir ILLUMINA_DIR
                         Directory where the raw illumina fastqs are stored. Default None
-  --assembly-in ASSEMBLY_IN [ASSEMBLY_IN ...]
-                        Dictionary with assemblies that need to be polished but not assembled and directory where they should be polished. Example:
-                        '{"assembly1":"polishing_dir1"}' '{"assembly2"="polishing_dir2"}' ...
-  --postpolish-assemblies POSTPOLISH_ASSEMBLIES [POSTPOLISH_ASSEMBLIES ...]
-                        Dictionary with assemblies for whic postpolishing steps need to be run but that are not assembled and base step for the
-                        directory where the first postpolishing step should be run. Example: '{"assembly1":"s04.1_p03.1"}'
-                        '{"assembly2":"s04.2_p03.2"}' ...
-  --curated-assemblies CURATED_ASSEMBLIES [CURATED_ASSEMBLIES ...]
-                        Dictionary with assemblies that have already been curated. Evaluations and read alignment will be perforder. Example:
-                        '{"assembly1":"s04.1_p03.1"}' '{"assembly2":"s04.2_p03.2"}' ...
   --hic-dir HIC_DIR     Directory where the HiC fastqs are stored. Default None
+  --raw-10X RAW_10X [RAW_10X ...]
+                        Dictionary with 10X raw read directories, it has to be the mkfastq dir. You must specify as well the sampleIDs from this run. Example: '{"mkfastq-
+                        dir":"sample1,sample2,sample3"}'...
+  --ont-reads ONT_READS
+                        File with all the ONT reads. It can either be in fastq, fasta or bam format Default None
+  --hifi-reads HIFI_READS
+                        File with all the HiFi reads It can be either in fastq, fasta or bam format. Default None
+  --pe1 PE1             File with the illumina paired-end fastqs, already trimmed, pair 1.
+  --pe2 PE2             File with the illumina paired-end fastqs, already trimmed, pair 2.
+  --10X R10X            File with barcoded 10X reads in fastq.gz format, concatenated.
+  --processed-illumina PROCESSED_ILLUMINA
+                        Directory to Processed illumina reads. Already there or to be produced by the pipeline.
+  --processed-10X PROCESSED_10X
+                        Directory to Processed 10X reads. Already there or to be produced by the pipeline.
+  --ont-filt ONT_FILTERED
+                        File with the ONT reads after running filtlong on them. Default None
+  --assembly-in ASSEMBLY_IN [ASSEMBLY_IN ...]
+                        Dictionary with assemblies that need to be polished but not assembled and directory where they should be polished. Example: '{"assembly1":"polishing_dir1"}'
+                        '{"assembly2"="polishing_dir2"}' ...
+  --postpolish-assemblies POSTPOLISH_ASSEMBLIES [POSTPOLISH_ASSEMBLIES ...]
+                        Dictionary with assemblies for which postpolishing steps need to be run but that are not assembled and base step for the directory where the first postpolishing step should be run.
+                        Example: '{"assembly1":"s04.1_p03.1"}' '{"assembly2":"s04.2_p03.2"}' ...
+  --curated-assemblies CURATED_ASSEMBLIES [CURATED_ASSEMBLIES ...]
+                        Dictionary with assemblies that have already been curated and directory where read alignment should be run. Evaluations and read alignment will be performed. Example:
+                        '{"assembly1":"s04.1_p03.1"}' '{"assembly2":"s04.2_p03.2"}' ...
 
 Outputs:
   --pipeline-workdir PIPELINE_WORKDIR
-                        Base directory for the pipeline run. Default /scratch_isilon/groups/assembly/jgomez/test_CLAWSv2/ilErePala/assembly/
-  --filtlong-dir FILTLONG_DIR
-                        Directory to process the ONT reads with filtlong. Default s02.1_p01.1_Filtlong
+                        Base directory for the pipeline run. Default /scratch_isilon/groups/assembly/jgomez/Annotation_AAT_pipeline/
+  --preprocess-lr PREPROCESS_LR
+                        Directory to process the long-reads. Default s02.1_p01.1_Preprocess_LR
   --concat-hic-dir CONCAT_HIC_DIR
                         Directory to concatenate the HiC reads. Default s02.3_p01.1_Concat_HiC
   --flye-dir FLYE_DIR   Directory to run flye. Default s03.1_p02.1_flye/
   --nextdenovo-dir NEXTDENOVO_DIR
                         Directory to run nextdenovo. Default s03.2_p02.1_nextdenovo/
+  --hifiasm-dir HIFIASM_DIR
+                        Directory to run hifiasm. Default s03.3_p02.1_hifiasm/
   --flye-polishing-dir POLISH_FLYE_DIR
                         Directory to polish the flye assembly. Default s04.1_p03.1_polishing/
   --nextdenovo-polishing-dir POLISH_NEXTDENOVO_DIR
@@ -339,6 +336,12 @@ Filtlong:
   --filtlong-opts filtlong_opts
                         Extra options to run Filtlong (eg. -t 4000000000)
 
+Trim_Galore:
+  --trim-galore-opts trim_galore_opts
+                        Optional parameters for the rule trim_galore. Default --max_n 0 --gzip -q 20 --paired --retain_unpaired
+  --trim-Illumina-cores Trim_Illumina_cores
+                        Number of threads to run the Illumina trimming step. Default 8
+
 Kraken2:
   --kraken2-db kraken2_db
                         Database to be used for running Kraken2. Default None
@@ -349,12 +352,6 @@ Kraken2:
   --kraken2-cores kraken2_threads
                         Number of threads to run the Kraken2 step. Default 16
 
-Trim_Galore:
-  --trim-galore-opts trim_galore_opts
-                        Optional parameters for the rule trim_galore. Default --max_n 0 --gzip -q 20 --paired --retain_unpaired
-  --trim-Illumina-cores Trim_Illumina_cores
-                        Number of threads to run the Illumina trimming step. Default 8
-
 Flye:
   --flye-cores flye_cores
                         Number of threads to run FLYE. Default 128
@@ -362,6 +359,14 @@ Flye:
                         Number of polishing iterations to use with FLYE. Default 2
   --other-flye-opts other_flye_opts
                         Additional options to run Flye. Default --scaffold
+
+Hifiasm:
+  --hifiasm-cores hifiasm
+                        Number of threads to run Hifiasm. Default 50
+  --other-hifiasm-opts other_hifiasm_opts
+                        Additional options to run Hifiasm. Default --ont
+  --purge-hifiasm       Give this option if you want to run purgedups externally on the hifiasm output.
+  --phase-hifiasm       Give this option if you want to phase with hic reads the hifiasm assembly
 
 Nextdenovo:
   --nextdenovo-cores nextdenovo_cores
@@ -377,15 +382,13 @@ Nextdenovo:
   --nextdenovo-minreadlen nextdenovo_minreadlen
                         Filter reads with length < minreadlen. Default 1k
   --nextdenovo-seeddepth nextdenovo_seeddepth
-                        Expected seed depth, used to calculate seed_cutoff, co-use with genome_size, you can try to set it 30-45 to get a better
-                        assembly result. Default 45
+                        Expected seed depth, used to calculate seed_cutoff, co-use with genome_size, you can try to set it 30-45 to get a better assembly result. Default 45
   --nextdenovo-seedcutoff nextdenovo_seedcutoff
                         Minimum seed length, <=0 means calculate it automatically using bin/seq_stat. Default 0
   --nextdenovo-blocksize nextdenovo_blocksize
                         Block size for parallel running, split non-seed reads into small files, the maximum size of each file is blocksize. Default 1g
   --nextdenovo-pa-correction  nextdenovo_pa_correction
-                        number of corrected tasks used to run in parallel, each corrected task requires ~TOTAL_INPUT_BASES/4 bytes of memory usage,
-                        overwrite parallel_jobs only for this step. Default 100
+                        number of corrected tasks used to run in parallel, each corrected task requires ~TOTAL_INPUT_BASES/4 bytes of memory usage, overwrite parallel_jobs only for this step. Default 100
   --nextdenovo-minimap_raw nextdenovo_minimap_raw
                         minimap2 options, used to find overlaps between raw reads, see minimap2-nd for details. Default -t 30
   --nextdenovo-minimap_cns nextdenovo_minimap_cns
@@ -421,17 +424,23 @@ Scaffold_with_10X:
 
 HiC:
   --hic-qc              Give this option if only QC of the HiC data needs to be done.
+  --subsample-hic       Give this option if you want to subsample the hic data for qc.
+  --add-preseq-opts ADD_PRESEQ_OPTS
+                        Additional options to give for preseq etrapolation. E.g. -D. Default:
   --no-pretext          Give this option if you do not want to generate the pretext file
+  --sort-pretext SORT_PRETEXT
+                        Specify how to sort the pretext (eg. --nosort or --sortby something. Default: nosort
   --assembly-qc assembly_qc
                         Path to the assembly to be used perfom the QC of the HiC reads.
   --yahs-cores yahs_cores
                         Number of threads to run YAHS. Default 48
-  --yahs-mq yahs_mq     Mapping quality to use when running yahs.Default 40
+  --yahs-mq yahs_mq     Mapping quality to use when running yahs.Default 10
+  --yahs-contig-ec      Give this option if you want to allow yahs perform contig breaks.
   --yahs-opts yahs_opts
                         Additional options to give to YAHS.Default
   --hic-map-opts hic_map_opts
                         Options to use with bwa mem when aligning the HiC reads. Deafault -5SP -T0
-  --mq mq [mq ...]      Mapping qualities to use for processing the hic mappings. Default [0, 40]
+  --mq mq [mq ...]      Mapping qualities to use for processing the hic mappings. Default [0, 10]
   --hic-qc-assemblylen hic_qc_assemblylen
                         Lentgh of the assembly to be used for HiC QC
   --blast-cores blast_cores
@@ -444,7 +453,7 @@ HiC:
 Finalize:
   --no-final-evals      If specified, do not run evaluations on final assemblies. Default True
   --busco-lin busco_lineage
-                        Path to the lineage directory to run Busco with. Default None
+                        Path to the busco lineage to be used.
   --merqury-db merqury_db
                         Meryl database. Default None
   --merqury-plot-opts merqury_plot_opts
@@ -458,6 +467,8 @@ Finalize:
 Wildcards:
   --ont-list ONT_wildcards
                         List with basename of the ONT fastqs that will be used. Default None
+  --hifi-list hifi_wildcards
+                        List with basename of the ONT fastqs that will be used. Default None
   --illumina-list illumina_wildcards
                         List with basename of the illumina fastqs. Default None
   --r10X-list r10X_wildcards
@@ -465,6 +476,121 @@ Wildcards:
   --hic-list hic_wildcards
                         List with basename of the raw hic fastqs. Default None
 ```
+
+# Changes made to v3.0:
+
+ New options to provide Hifi reads have been implemented: 
+
+  --hifi-reads HIFI_READS 
+
+                        File with all the HiFi reads It can be either in fastq, fasta or bam format. De 
+
+  --hifi-dir HIFI_DIR   Directory where the hifi reads are stored. In this case, the files need to be in fastq format.  
+
+ONT reads can now also be in .bam format 
+
+Illumina reads suffix can now be "_1.fastq.gz" and ".R1.fastq.gz" or ".1.fastq.gz" (only the latter used to be possible in previous versions of CLAWS) 
+
+Meryl_dbs can now be built on "hifi" data if specified with "--meryl-reads" and/or with " –lr-type pacbio-hifi" option. 
+
+Fasta-stats has been replaced by gfastats 
+
+Polishing and filtlong have been turned off if long-read type is hifi reads.  
+
+Hifiasm expects only 2 haps output if no phasing and as many haps as given ploidy if phasing. 
+
+Busco version has been updated to v6.0.0 and odb12 databases 
+
+Nomenclature: hypo is now hyp 
+
+Change mq defaults to 0, 10 for pretext and 10 for yahs 
+
+Add mq to yahs name 
+
+New "add_preseq_opts" option 
+
+New subsample hic rule, possible to turn it on for hic_qc with "--subsample-hic" option 
+
+Generation of plot for hic qc has been added 
+
+--split-prefix option has been added to minimap2 for genomes larger than 4G 
+
+.csi indexes are now made instead of .bai 
+
+Option "-no-contig-ec" is now default for yahs, breaking can be activated with the new "--yahs-contig-ec" option 
+
+Bug that was not properly running merqury in haps mode for postassembly steps has been fixed.  
+
+PretextGraph has now been updated to version 0.0.9 
+
+New files have been added to the cleaning step: 
+
+- Pairtools_out directory 
+
+- Hic alignments 
+
+- Hifi temporary fastq when bam is given 
+
+- Long-read alignments against scaffolded assemblies are now kept 
+
+HighrRes pretext files are now generated 
+
+Basename has been added as prefix for the assemblies 
+
+Tidk has been updated from v0.2.0 to 0.2.65 
+
+Telomere string can now be given as option to the pipeline and it will be used both for hifiasm and for running tidk find on every assembly, in the evaluations directory.  
+
+# Changes made to v2.3: 
+1. Assembly nomenclature 
+
+Previous flye.assembly --> fl.asm 
+
+Previous nextdenovo.assembly --> nd.asm 
+
+Previous hypo --> hp 
+
+Previous nextpolish_ont --> npo 
+
+Previous nextpolish_ill --> npi 
+
+Previous purged --> pgd 
+
+Previous yahs_scaffolds_final --> yhs_scffs 
+
+2. Versions
+
+Trim_galore version has been updated from 0.6.7 to 0.6.10 
+
+Flye version has been updated from 2.9.1 to 2.9.5 
+
+Busco version has been updated from 5.4.0 to 5.5.0 
+
+4. Behaviour changes 
+
+Genomescope default options have changed, from " -m 10000 " to " -m –1 " 
+
+Added --no-smudgeplot option to skip running smudgeplot if desired 
+
+Hifiasm has been included 
+
+If lr_type = pacbio-hifi, hifiasm will run without ont option.  
+
+Purgedups can be optionally run on Hifiasm assemblies (option –purge-hifiasm). By default it will only scaffold the hifiasm assemblies 
+
+Merqury will run hap1 and hap2 together 
+
+Busco output filenames contain now the name of the db used.  
+
+Removed the generation of tmp file in rule align_lr 
+
+Align_hic rule is now using bwa-mem2 
+
+Added optimized thread options to pairtools rules, thanks to Francisco 
+
+Sort option has been added to generate pretext rule (--sort-pretext, default is "nosort") 
+
+
 # Changes made to v2.2: 
 
 1. General: 
