@@ -74,7 +74,6 @@ for file in assemblies:
 
   in_files[evalassdir + ass_base] = file
   evals_dir[evalassdir + ass_base] = evalassdir
-
   StatsFiles.append(evalassdir + "stats/" + ass_base + ".stats.txt")
   if config["Parameters"]["telo_repeat"]:
     telo_bgs[ass_base] = evalassdir + "telomeres/" + ass_base + "." + config["Parameters"]["telo_repeat"] + "_telo.bg"
@@ -87,6 +86,7 @@ for file in assemblies:
       hap_base = ass_base.split(".hap")
       fullbase = hap_base[0] 
       if not re.search("pgd", file) and not re.search("yhs", file):
+        ev_dir = evalassdir 
         merqdir = evalassdir + "merqury/" + hap_base[0] + ".haps"
         if evalassdir + hap_base[0] + ".haps" in in_files and not file in in_files[evalassdir + hap_base[0] + ".haps"]:
           in_files[evalassdir + hap_base[0] + ".haps"].append(file)
@@ -103,47 +103,52 @@ for file in assemblies:
           if len(hap_end) == 3:
             tmp2 = hap_step[2].split("_")[1:]
             merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps/merqury/" + fullbase + ".haps"
-            ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps"
+            ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + "_".join(tmp2) + "_haps/"
           else:
             merqdir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps/merqury/" + fullbase + ".haps"
-            ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps"
+            ev_dir = os.path.dirname(evalassdir.rstrip("/")) + "/" + hap_step[0] + "_" + tmp_step[1] + "." + hap_step[2] + "_haps/"
         else:
            merqdir = evalassdir + "merqury/" +  fullbase + ".haps"
            ev_dir = evalassdir.rstrip("/")
         if not os.path.exists(ev_dir + "/logs/"):
           os.makedirs(ev_dir + "/logs/")
-        if ev_dir + "/" + fullbase + ".haps" in in_files and not file in in_files[ev_dir + "/" + fullbase + ".haps"]:
-          in_files[ev_dir + "/" + fullbase + ".haps"].append(file)
+        if ev_dir +fullbase + ".haps" in in_files and not file in in_files[ev_dir + fullbase + ".haps"]:
+          in_files[ev_dir + fullbase + ".haps"].append(file)
           haps[merqdir + "/" + fullbase + ".haps"].append(file)
-        elif not ev_dir + "/" + fullbase + ".haps" in in_files:
-          in_files[ev_dir+ "/" + fullbase + ".haps"] = [file]
+        elif not ev_dir + fullbase + ".haps" in in_files:
+          in_files[ev_dir + fullbase + ".haps" ] = [file]
           haps[merqdir + "/" + fullbase + ".haps"] = [file]
-   
       if "yhs" in fullbase or ass_base in curated_assemblies:
         if "hap1" in file:
-          hap1_files[ev_dir + "/diploid/" + fullbase] = file
+          hap1_files[ev_dir + "diploid/" + fullbase] = file
         elif "hap2" in file:
-          hap2_files[ev_dir + "/diploid/" + fullbase] = file
-        if ev_dir + "/diploid/" + fullbase in hap1_files and ev_dir + "/diploid/" + fullbase in hap2_files:
-          if not os.path.exists(ev_dir + "/diploid/logs/"):
-            os.makedirs(ev_dir + "/diploid/logs")
-          diploid_fasta = ev_dir + "/diploid/" + fullbase + ".diploid.fa"
+          hap2_files[ev_dir + "diploid/" + fullbase] = file
+        if ev_dir + "diploid/" + fullbase in hap1_files and ev_dir + "diploid/" + fullbase in hap2_files:
+          if not os.path.exists(ev_dir + "diploid/logs/"):
+            os.makedirs(ev_dir + "diploid/logs")
+          diploid_fasta = ev_dir + "diploid/" + fullbase + ".diploid.fa"
           if config["Parameters"]["telo_repeat"]:
-            telo_bgs[fullbase + ".diploid"] = ev_dir + "/diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg"
-            telomeres.append(ev_dir + "/diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg")
-          in_files[ev_dir + "/diploid/" + fullbase + ".diploid" ] = diploid_fasta
+            telo_bgs[fullbase + ".diploid"] = ev_dir + "diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg"
+            telomeres.append(ev_dir + "diploid/telomeres/" + fullbase + ".diploid." + config["Parameters"]["telo_repeat"] + "_telo.bg")
+          in_files[ev_dir + "diploid/" + fullbase + ".diploid" ] = diploid_fasta
           hic_assemblies[fullbase + ".diploid"] = diploid_fasta
-          pretext_lrmap[fullbase + ".diploid"] = ev_dir + "/diploid/mappings/" + fullbase + ".diploid_minimap2.bam"
-          hic_bams[fullbase + ".diploid"] = ev_dir + "/diploid/mappings/" + fullbase + ".diploid.full_hic.bam"
-          asslength[fullbase + ".diploid"] = ev_dir + "/diploid/"+ fullbase + ".diploid.genome"
+          pretext_lrmap[fullbase + ".diploid"] = ev_dir + "diploid/mappings/" + fullbase + ".diploid_minimap2.bam"
+          hic_bams[fullbase + ".diploid"] = ev_dir + "diploid/mappings/" + fullbase + ".diploid.full_hic.bam"
+          asslength[fullbase + ".diploid"] = ev_dir + "diploid/"+ fullbase + ".diploid.genome"
           pretext_in.append(diploid_fasta)
           minimap2[fullbase + ".diploid"] = diploid_fasta
           tpf_files.append(diploid_fasta + ".tpf")
 
           for mq in config['HiC']['MQ']:
-            pretext_files.append(ev_dir + "/diploid/in_pretext/" + fullbase + ".diploid_mq" + str(mq) + ".extensions.pretext")
-            if not os.path.exists(ev_dir + "/diploid/in_pretext/logs"):
-              os.makedirs(ev_dir + "/diploid/in_pretext/logs")
+            pretext_files.append(ev_dir + "diploid/in_pretext/" + fullbase + ".diploid_mq" + str(mq) + ".extensions.pretext")
+            if not os.path.exists(ev_dir + "diploid/in_pretext/logs"):
+              os.makedirs(ev_dir + "diploid/in_pretext/logs")
+        if ass_base in curated_assemblies:
+          if not os.path.exists(merqdir) and config["Finalize"]["Merqury db"]:
+            os.makedirs(merqdir)
+          MerqurySummaries.append(merqdir + "/" + fullbase + ".haps.completeness.stats")
+          MerquryQV.append(merqdir + "/" + fullbase + ".haps.qv")
+          MerquryDups.append(merqdir + "/" + fullbase + ".haps.false_duplications.txt")
     else:
       merqdir = evalassdir + "merqury/" + ass_base 
       if not os.path.exists(merqdir) and config["Finalize"]["Merqury db"]:
@@ -151,7 +156,7 @@ for file in assemblies:
       MerqurySummaries.append(merqdir + "/" + ass_base + ".completeness.stats")
       MerquryQV.append(merqdir + "/" + ass_base + ".qv")
       MerquryDups.append(merqdir + "/" + ass_base + ".false_duplications.txt")
-  
+
 for base in haps:
   ploi = 0
   for i in haps[base]:
@@ -163,9 +168,13 @@ for base in haps:
     MerqurySummaries.append(base + ".completeness.stats")
     MerquryQV.append(base + ".qv")
     MerquryDups.append(base +  ".false_duplications.txt")
+    if not os.path.exists(os.path.dirname(base)):
+      os.makedirs(os.path.dirname(base))
   else:
     dir = os.path.dirname(os.path.dirname(base))
     name = os.path.splitext(os.path.basename(file))[0]
+    if not os.path.exists(dir + "/" + name):
+      os.makedirs(dir + "/" + name)
     MerqurySummaries.append(dir + "/" + name + "/" + name + ".completeness.stats")
     MerquryQV.append(dir + "/" + name + "/" + name + ".qv")
     MerquryDups.append(dir + "/" + name + "/" + name +  ".false_duplications.txt")

@@ -1449,6 +1449,8 @@ class CreateConfigurationFile(object):
           args.pairtools_sort_cores = 128
           args.pairtools_dedup_cores = 4
           args.pairtools_split_cores = 16
+          args.pairtools_time = "48:00:00"
+          args.pairtools_qos = "vlong"
           args.qcstats_qos = 'normal'
           args.qcstats_time = "12:00:00"
           args.qcstats_mem = "100G"
@@ -1474,6 +1476,9 @@ class CreateConfigurationFile(object):
           args.busco_qos = "vlong"
           args.busco_mem = "150G"
           args.purgedups_time = "12:00:00"
+          args.pairtools_time = "124:00:00"
+          args.pairtools_qos = "marathon"
+
           if args.nextdenovo_type == "local":
             args.nextdenovo_time = "500:00:00"
            
