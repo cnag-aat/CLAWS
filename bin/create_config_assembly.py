@@ -350,7 +350,7 @@ class CreateConfigurationFile(object):
         self.other_flye_opts = " --scaffold "                                                     #include here genome size in pipeline											
 
         #FLYE SPEC PARAMETERS
-        self.flye_qos = "marathon"
+        self.flye_qos = "marathon_assembly"
         self.flye_time = "100:00:00"
         self.flye_queue = "general"
         self.flye_mem = "950G"
@@ -1307,7 +1307,7 @@ class CreateConfigurationFile(object):
         if args.nextdenovo_type == "local":
           args.nextdenovo_mem =  "900G"
           args.nextdenovo_cores = 128
-          args.nextdenovo_qos = "marathon"
+          args.nextdenovo_qos = "marathon_assembly"
           args.nextdenovo_time = "100:00:00"
 
         args.minimap_qos =  self.minimap_qos
@@ -1417,12 +1417,12 @@ class CreateConfigurationFile(object):
 
         if gsize > 1000:
           args.concat_cores = 16
-          args.flye_qos = "marathon"
+          args.flye_qos = "marathon_assembly"
           args.flye_time = "150:00:00"
           if args.nextdenovo_type == "local":
             args.nextdenovo_time = "150:00:00"
           args.nanoplot_time = "48:00:00"
-          args.nanoplot_queue = "vlong"
+          args.nanoplot_qos = "vlong"
           args.bwa_time = "24:00:00"
           args.bwa_qos = "long"
           args.bwa_mem = "300G"
@@ -1477,7 +1477,7 @@ class CreateConfigurationFile(object):
           args.busco_mem = "150G"
           args.purgedups_time = "12:00:00"
           args.pairtools_time = "124:00:00"
-          args.pairtools_qos = "marathon"
+          args.pairtools_qos = "marathon_assembly"
 
           if args.nextdenovo_type == "local":
             args.nextdenovo_time = "500:00:00"

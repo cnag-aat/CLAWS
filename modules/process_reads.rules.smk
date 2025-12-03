@@ -41,6 +41,22 @@ rule concat_reads:
   shell:
     "zcat {input.fastqs} | pigz -p {threads} -c  > {output.final_fastq};"
 
+rule bam2fastq:
+  input:
+    bam= "reads.bam"
+  output:
+    fastq = "reads.fastq"
+  log:
+    "logs/" + str(date) + ".j%j.bam2fastq.out",
+    "logs/" + str(date) + ".j%j.bam2fastq.err",
+  benchmark:
+    "logs/" + str(date) + ".j%j.bam2fastq.benchmark.txt",
+  conda:
+    '../envs/Samtools1.21.yaml'
+  threads: 2
+  shell:
+    "samtools fastq {input.bam}  > {output.fastq};"
+
 rule build_meryl_db:
   input:
     fastq = "all_reads.fastq.gz"
@@ -68,6 +84,21 @@ rule concat_meryl:
   shell:
     "meryl union-sum output {output.meryl_all} {input.input_run};"
     "meryl histogram {output.meryl_all} > {output.histogram};"
+
+rule build_meryl:
+  input:
+    fastq = "all_reads.fastq.gz"
+  output:
+     meryl = directory("meryl_db.meryl"),
+     histogram = "meryl.hist"
+  params:
+    kmer = 21
+  conda:
+    "../envs/merqury1.3.yaml"
+  threads: 4
+  shell:
+    "meryl k={params.kmer} count output {output.meryl} {input.fastq};"
+    "meryl histogram {output.meryl} > {output.histogram};"
 
 rule genomescope2:
   input:
@@ -152,13 +183,14 @@ rule filtlong:
 
 rule nanoplot:
   input:
-    fastq = "reads.ont.fastq.gz"
+    reads = "reads.ont.fastq.gz"
   output:
     stats = "nanostats_out/NanoStats.txt",
     yield_len = "nanostats_out/Yield_By_Length.png",
     read_len = "nanostats_out/WeightedHistogramReadlength.png"
   params:
     outdir = "nanostats_out/",
+    datatype = "fastq"
   log:
     "{dir}logs/" + str(date) + ".NanoStats.out",
     "{dir}logs/" + str(date) + ".NanoStats.err"
@@ -170,7 +202,7 @@ rule nanoplot:
   shell:
     "mkdir -p {params.outdir};" 
     "cd {params.outdir}; "
-    "NanoPlot -t {threads} --plots dot --fastq {input.fastq} -o .; "
+    "NanoPlot -t {threads} --plots dot --{params.datatype} {input.reads} -o .; "
 
 rule Kraken2:
   input:
@@ -195,3 +227,22 @@ rule Kraken2:
   shell:
      "kraken2 --threads {threads} --db {input.database}  --use-names --report {output.report} {params.additional} {input.read} > {output.readsout}; "
      "est_abundance.py -i {output.report} -k {input.kmers} -l S -t 10 -o {output.abundance}; "
+
+rule subsample_hic:
+  input:
+    read1 = "[reads.hic.1.fastq.gz]",
+    read2 = "[reads.hic.2.fastq.gz]"
+  output:
+    down_read1 = "reads.hic_subset.1.fastq.gz",
+    down_read2 = "reads.hic_subset.2.fastq.gz"
+  log:
+    "logs/" + str(date) + ".down_hic.out",
+    "logs/" + str(date) + ".down_hic.err"
+  benchmark:
+    "logs/" + str(date) + ".down_hic.benchmark.txt"
+  threads: 4
+  conda:
+    '../envs/ass_base.yaml'
+  shell:
+    "(zcat {input.read1} ||true) | head -n 6000000 | pigz -p {threads} -c > {output.down_read1};"
+    "(zcat {input.read2} ||true) | head -n 6000000 | pigz -p {threads} -c > {output.down_read2};"
