@@ -90,8 +90,10 @@ for file in assemblies:
         merqdir = evalassdir + "merqury/" + hap_base[0] + ".haps"
         if evalassdir + hap_base[0] + ".haps" in in_files and not file in in_files[evalassdir + hap_base[0] + ".haps"]:
           in_files[evalassdir + hap_base[0] + ".haps"].append(file)
+          haps[merqdir + "/" + hap_base[0] + ".haps"].append(file)
         elif not evalassdir + hap_base[0] + ".haps" in in_files:
           in_files[evalassdir + hap_base[0] + ".haps"] = [file]
+          haps[merqdir + "/" + hap_base[0] + ".haps"] = [file]
       else:
         hap_end = hap_base[1].split(".")
         for i in range(1, len(hap_end)):

@@ -23,11 +23,12 @@ lr_reads = {}
 lr_type = {}
 kraken_ins = {}
 
+reads_loc = {}
 if config["Finalize"]["Merqury db"]:
   meryl_loc = os.path.dirname(config["Finalize"]["Merqury db"]) + "/tmp_meryl/"
   if not os.path.exists(config["Finalize"]["Merqury db"]) and not os.path.exists(meryl_loc):
     os.makedirs(meryl_loc)
-  reads_loc = {}
+  
   meryl_dbs = []
 
 if config["Inputs"]["ONT_reads"]:
