@@ -238,7 +238,7 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
   if config['Parameters']['run_yahs']:
     use rule run_yahs from hic_workflow with:
       input:
-        mappedsort = "{directory}/mappings/{name}.CM.mq" + str(config['HiC']["yahs_mq"]) + ".sorted.bam",
+        mappedsort = "{directory}/in_pretext/mappings/{name}.CM.mq" + str(config['HiC']["yahs_mq"]) + ".bam",
         sla = lambda wildcards: hic_assemblies[wildcards.name],
         index = lambda wildcards: hic_assemblies[wildcards.name] + ".fai"
       output:
@@ -276,7 +276,7 @@ if config['HiC']['get_pretext']:
 
   use rule generate_pretext from hic_workflow with:
     input:
-      mapbam = "{directory}/mappings/{name}.CM.mq{mq}.sorted.bam"
+      mapbam = "{directory}/mappings/{name}.CM.mq{mq}.bam"
     output:
       pret = "{directory}/{name}_mq{mq}.pretext", 
       hr_pret = "{directory}/{name}_mq{mq}.HR.pretext", 
