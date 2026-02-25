@@ -26,7 +26,7 @@ rule assembly_prepare:
 
 rule run_yahs:
   input: 
-    mappedsort = "mapped.CM.mq10.sorted.bam",
+    mappedsort = "mapped.CM.mq10.bam",
     sla = "assembly.fa",
     index = "assembly.fa.fai"
   output:
@@ -51,7 +51,7 @@ rule run_yahs:
 
 rule generate_pretext:
   input:
-    mapbam = "mapped.CM.mq10.sorted.bam"  
+    mapbam = "mapped.CM.mq10.bam"  
   output:
     pret = "assembly_mq10.pretext",
     hr_pret = "assembly_mq10.HR.pretext", 

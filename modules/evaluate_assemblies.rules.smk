@@ -202,8 +202,7 @@ rule align_hic_chromap:
     read1 = "HiC.R1.fastq.gz",
     read2 = "HiC.R2.fastq.gz"
   output:
-    mapped = "mapped.CM.mq0.sorted.bam",
-    unmapped = "unmapped_hic.bam" 
+    mapped = "mapped.CM.mq0.bam",
   params:
     outd = "mappings",
     name = "assembly",
@@ -219,17 +218,16 @@ rule align_hic_chromap:
     mkdir -p {params.tmpd};
     chromap -i  -r {input.ass}  -o {params.outd}/{params.name}.index {params.options};
     chromap --preset hic -x {params.outd}{params.name}.index  -r {input.ass} -1 {input.read1} -2 {input.read2} -t {threads} -q 0 --remove-pcr-duplicates --SAM -o {params.tmpd}/{params.name}.full_hic.sam;
-    samtools view -@ $threads_half -b -F 4 {params.tmpd}/{params.name}.full_hic.sam | samtools sort -@ {threads} -m {params.mem} -o {output.mapped};
-    samtools view -@ $threads_half -b -f 4 {params.tmpd}/{params.name}.full_hic.sam -o {output.unmapped};
+    samtools view -@ $threads_half -b -F 4 {params.tmpd}/{params.name}.full_hic.sam -o {output.mapped};
     rm {params.tmpd}/{params.name}.full_hic.sam;
     rm -r {params.tmpd};
     """
 
 rule filter_chromap:
   input:
-    bam = "mapped.CM.mq0.sorted.bam"
+    bam = "mapped.CM.mq0.bam"
   output: 
-    filtered = "mapped.CM.mq10.sorted.bam"
+    filtered = "mapped.CM.mq10.bam"
   params:
     mq = 10,
     mem = '4G'
@@ -238,7 +236,6 @@ rule filter_chromap:
   shell:
     """
     threads_half=$(({threads}/2));
-  #  samtools view -@ $threads_half -b -F 4 -q {params.mq} {input.bam} | samtools sort -@ {threads} -m {params.mem} -o {output.filtered};
     samtools view -@ $threads_half -b -F 4 -q {params.mq} {input.bam} -o {output.filtered};
     """
 

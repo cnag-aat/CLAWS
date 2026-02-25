@@ -239,8 +239,7 @@ if len(hic_assemblies) > 0:
         read1 = hic_pe1,
         read2 = hic_pe2
     output:
-        mapped = "{directory}/mappings/{name}.CM.mq0.sorted.bam",
-        unmapped = "{directory}/mappings/{name}.unmapped_hic.bam"
+        mapped = "{directory}/mappings/{name}.CM.mq0.bam",
     params:
         name = '{name}',
         outd = '{directory}/mappings/',
@@ -387,9 +386,9 @@ if len(hic_assemblies) > 0:
   elif config['HiC']['get_pretext']:
     use rule filter_chromap from eval_workflow with:
       input:
-        bam = "{directory}/mappings/{name}.CM.mq0.sorted.bam"
+        bam = "{directory}/mappings/{name}.CM.mq0.bam"
       output:
-        filtered = "{directory}/mappings/{name}.CM.mq{mq}.sorted.bam"
+        filtered = "{directory}/mappings/{name}.CM.mq{mq}.bam"
       params:
         mq = "{mq}",
         mem = "4G",

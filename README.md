@@ -14,14 +14,16 @@ Once the 2 config files are produced, the pipeline can be launched using snakema
 
 If you are using an HPC cluster, please check how should you run snakemake to launch the jobs to the cluster. 
 
-Most of the tools used will be installed via conda using the environments of the "envs" directory after providing the "--use-conda" option to snakemake. However, a few tools cannot be installed via conda and will have to be available in your PATH, or as a module in the cluster. Those tools are:
+Most of the tools used will be installed via conda using the environments of the "envs" directory after providing the "--use-conda" option to snakemake. However, a few optional tools cannot be installed via conda and will have to be available in your PATH, or as a module in the cluster. Those tools are:
 
 - NextDenovo/2.5.0
 - NextPolish/1.4.1
 
+If you want to assemble with NextDenovo or polish with NextPolish you'll need to install them first, but if you just want to run CLAWS with the default assemblers and polishers, do not worry about this step. 
+
 # How to provide input data:
 
-There are several ways of providing the reads.
+There are several ways of providing the reads. All types of data are optional and depending on your inputs and steps selection, you can personalize your run. 
 
 ### 1- ONT reads
 
@@ -55,15 +57,17 @@ You can also specify the basenames of the files that you want to use with the ``
 
 1.2 Using the option ```--hifi-reads {FILE}``` in create_config_assembly.py.
 
-File with all the HiFi reads It can be either in fastq, fasta or bam format. It will be used for assembly, purging and building a meryldb.
+File with all the HiFi reads. It can be either in fastq, fasta or bam format. It will be used for assembly, purging and building a meryldb.
 
 ### 3- Illumina short-read data
+
+CLAWS can optionally take Illumina reads and use them for building meryl_dbs and/or polishing. 
 
 3.1 Using the ``--illumina-dir {DIR}`` option, that will look for all the files in the directory that end in '.1.fastq.gz' and will add the basenames to "illumina_wildcards". These wildcards will be processed by the pipeline that will: 
 
 - Trim adaptors with Trimgalore
 
-- Concatenate all the trimmed *.1.fastq.gz and the *2.fastq.gz in one file per pair. 
+- Concatenate all the trimmed *.1.fastq.gz and the *2.fastq.gz into one file per pair. 
 
 - The resulting reads will be used for building meryldbs and polishing. 
 
@@ -101,7 +105,7 @@ If you want to polish an already assembled assembly, you can give it to the pipe
                         Dictionary with assemblies that need to be polished but not assembled and directory where they should
                         be polished. Example: '{"assembly1":"polishing_dir1"}' '{"assembly2"="polishing_dir2"}' ...``
 			
-If you want to start the pipeline after polishing on an already existing assembly, you can give it to the pipeline by using the option ``--postpolish-assemblies POSTPOLISH_ASSEMBLIES [POSTPOLISH_ASSEMBLIES ...]
+If you want to start CLAWS after polishing on an already existing assembly, you can give it to the pipeline by using the option ``--postpolish-assemblies POSTPOLISH_ASSEMBLIES [POSTPOLISH_ASSEMBLIES ...]
                         Dictionary with assemblies for which postpolishing steps need to be run but that are not assembled and
                         base step for the directory where the first postpolishing step should be run. Example:
                         '{"assembly1":"s04.1_p03.1"}' '{"assembly2"="s04.2_p03.2"}' ...``
@@ -134,9 +138,11 @@ To evaluate and produce the final pretext file on a curated assembly, use ``--cu
 
 - **Align Illumina (BWA-MEM):** it aligns the reads with BWA-mem and outputs a bam file.
 
+- **Align Hi-C (Chromap):** it aligns the reads with Chromap and outputs a bam file.
+
 2- Assembly
 
-- **Hifiasm (default)**. It is run by default, if you don't want the pipeline to run it, you can give `--no-hifiasm` option when creating the config. It uses the conda environment specified in the config. It can run in phaisng mode if the option "--phase-hifiasm is given. Extra options can be provided with the `--other-hifiasm-opts`. If you want purgedups to be run on the output, please give the "purge-hifiasm" option. 
+- **Hifiasm (default)**. It is run by default, if you don't want the pipeline to run it, you can give `--no-hifiasm` option when creating the config. It uses the conda environment specified in the config. It can run in phasing mode if the option "--phase-hifiasm" is given. Extra options can be provided with the `--other-hifiasm-opts`. You need to provide a telomeric motif  If you want purgedups to be run on the output, please give the "purge-hifiasm" option. 
 
 - **Flye (default)**. It is run by default, if you don't want the pipeline to run it, you can give `--no-flye` option when creating the config. It uses the conda environment specified in the config. By default it is set to 2 polishing iterations and gives the genome-size estimate that has been given when creating the config. Extra options can be provided with the `--flye-opts`.
 	
@@ -152,7 +158,7 @@ To evaluate and produce the final pretext file on a curated assembly, use ``--cu
 
 4- Post-assembly
 
-- **Purge_dups (by default):** select ``--no-purgedups`` if you don't want to run it. If no manual cutoffs are given, it'll run purgedups with automatic cutoffs and then will rerun it selecting the mean cutoff as 0.75\*cov. It uses the version installed in the cluster module specified in the config.
+- **Purge_dups (by default):** select ``--no-purgedups`` if you don't want to run it. If no manual cutoffs are given, it'll run purgedups with automatic cutoffs and then will rerun it selecting the mean cutoff as 0.75\*cov. It uses the version installed in the cluster module specified in the config. It doesn't run after hifiasm unless "--purge-hifiasm" option is given. 
 
 - **Yahs (by default):** select ``--no-yahs``if you do not want to run it. By default it uses mq10 and the no-contig-ec option, this can be changed by giving to the config the options "yahs-mq" and "yahs-contig-ec". "--yahs-opts" to change any other options.
 
@@ -162,7 +168,136 @@ To evaluate and produce the final pretext file on a curated assembly, use ``--cu
 	
 - **Busco:** It uses the conda environment specified in the config as well as the parameters specified, you need to provide the lineage directory. 
 	
-- **gfastastas:** 
+- **gfastastas:**  Gfastastats with the nstar option runs on every assembly produced or given as input to CLAWS.
+
+# Examples 
+
+We will show a few examples on how to create the config files and perform a snakemake dry-run that will show which commands will be performed. When you have your case ready, you can remove the "-np" option and let snakemake execute the pipeline
+
+1- Assemble a genome with ONT + Hi-C using default options and providing the phasing option to hifiasm 
+
+````
+CLAWS/bin/create_config_assembly.py  --configFile configs/qqChaOliv.config --specFile configs/qqChaOliv.spec --basename qqChaOliv --species "Chaetopelma olivaceum"  --genome-size 5g --ont-dir reads/ont/ --busco-lin busco_downloads/lineages/arachnida_odb12/ --illumina-dir reads/illumina/ --merqury-db qqChaOliv.meryl --meryl-k 20  --filtlong-opts " --target_bases 300000000000" --hic-dir reads/hic/   --telo ACCCCG  --phase-hifiasm
+Genome size is 5000.0 megabases
+Warning: Long-read type is set to nano-hq, make sure this is your data type.
+qqChaOliv.meryl not found, the pipeline will create it
+
+snakemake --notemp -j 999 --snakefile CLAWS/bin/assembly_pipeline.smk --configfile configs/qqChaOliv.config  --cluster-conf configs/qqChaOliv.spec   --cluster "python3 Snakemake-CNAG/sbatch-cnag.py {dependencies}" --is  --use-conda --use-envmodules --conda-prefix conda/assembly_pipeline_envs/ -np 
+Building DAG of jobs...
+Job counts:
+	count	jobs
+	17	add_extensions_pretext
+	9	align_hic_chromap
+	1	align_illumina
+	11	align_lr
+	1	all
+	4	assembly_prepare
+	3	build_meryl_db
+	1	concat_meryl
+	2	concat_reads
+	8	filter_chromap
+	1	filtlong
+	1	finalize
+	1	flye
+	1	generate_diploid
+	17	generate_pretext
+	1	genomescope2
+	9	get_extension_cov
+	9	get_extension_gaps
+	10	get_stats_gfa
+	5	get_tpf
+	1	hifiasm
+	1	hypo
+	2	nanoplot
+	1	purge_dups
+	10	run_busco
+	8	run_merqury
+	4	run_yahs
+	1	smudgeplot
+	11	tidk_search
+	1	trim_galore
+	152
+````
+
+This will make a meryl-db from both Illumina and ONT reads. The kmer histogram produced will be used to run genomescope and smudgeplot. 
+It will assemble the ONT reads with 2 different paths: 1. Flye + hypo + purge_dups + yahs and 2. Hifiasm with phasing option + yahs. 
+PretextMaps will be generated for all pre and post-scaffolding assemblies, with mapping qualities 10 and 0 and in low and High resolution mode. 
+Every assembly produced will be evaluated with gfastastats, busco and merqury. 
+
+2- Assemble a genome with HiFi + Hi-C and purge the Hifiasm produced assemblies. 
+
+````
+CLAWS/bin/create_config_assembly.py --configFile configs/ilEumAren.config --specFile configs/ilEumAren.spec --basename ilEumAren --species "Eumannia arenbergeri" --genome-size 1g --merqury-db ilEumAren.meryl --meryl-k 19 --hifi-reads reads/hifi/reads.bam --busco-lin busco_downloads/lineages/lepidoptera_odb12/ --lr-type pacbio-hifi --hic-dir reads/hic/ --telo TTAGG --purge-hifiasm
+Genome size is 1000.0 megabases
+Warning: Long-read type is set to pacbio-hifi, make sure this is your data type.
+ilEumAren.meryl not found, the pipeline will create it
+
+snakemake --notemp -j 999 --snakefile CLAWS/bin/assembly_pipeline.smk --configfile configs/ilEumAren.config   --cluster-conf configs/ilEumAren.spec  --cluster "python3 Snakemake-CNAG/sbatch-cnag.py {dependencies}" --is  --use-conda --use-envmodules --conda-prefix conda/assembly_pipeline_envs/ -np --reason
+Building DAG of jobs...
+Job counts:
+	count	jobs
+	17	add_extensions_pretext
+	9	align_hic_chromap
+	13	align_lr
+	1	all
+	4	assembly_prepare
+	1	bam2fastq
+	1	build_meryl
+	8	filter_chromap
+	1	finalize
+	1	flye
+	1	generate_diploid
+	17	generate_pretext
+	1	genomescope2
+	9	get_extension_cov
+	9	get_extension_gaps
+	12	get_stats_gfa
+	5	get_tpf
+	1	hifiasm
+	1	nanoplot
+	4	purge_dups
+	12	run_busco
+	9	run_merqury
+	4	run_yahs
+	1	smudgeplot
+	13	tidk_search
+	155
+
+````
+This will make a meryl-db from the HiFi reads. The kmer histogram produced will be used to run genomescope and smudgeplot. 
+It will assemble the HiFi reads with 2 different paths: 1. Flye + purge_dups + yahs and 2. Hifiasm + purge_dups + yahs. 
+PretextMaps will be generated for all pre and post-scaffolding assemblies, with mapping qualities 10 and 0 and in low and High resolution mode. 
+Every assembly produced will be evaluated with gfastastats, busco and merqury. 
+
+3- Evaluate and produce pretextmaps for an already curated diploid assembly
+
+```
+CLAWS/bin/create_config_assembly.py --configFile configs/ilEumAren.CM.config --specFile configs/ilEumAren.CM.spec --basename ilEumAren --species "Eumannia arenbergeri" --genome-size 1g --merqury-db ilEumAren.meryl --hifi-reads reads/hifi/reads.bam --busco-lin busco_downloads/lineages/lepidoptera_odb12/ --lr-type pacbio-hifi --hic-dir reads/hic/ --telo TTAGG  --no-flye --no-hifiasm --no-purgedups --hypo-rounds 0 --no-yahs  --no-smudgeplot --curated-assemblies '{"assemblies/ilEumAren1.1.hap2.fa":"assemblies", "assemblies/ilEumAren1.1.hap2.fa":"assemblies"}' --mq0
+Genome size is 1000.0 megabases
+Warning: Long-read type is set to pacbio-hifi, make sure this is your data type.
+
+ snakemake --notemp -j 999 --snakefile CLAWS/bin/assembly_pipeline.smk  --configfile configs/ilEumAren.CM.config  --cluster-conf configs/ilEumAren.CM.spec --cluster "python3 Snakemake-CNAG/sbatch-cnag.py {dependencies}" --is  --use-conda --use-envmodules --conda-prefix conda/assembly_pipeline_envs/  $PWD/evaluations/ilEumAren.stats_summary.txt -np --reason
+Building DAG of jobs...
+Job counts:
+	count	jobs
+	1	add_extensions_pretext
+	1	align_hic_chromap
+	1	align_lr
+	1	bam2fastq
+	1	build_meryl
+	1	finalize
+	1	generate_pretext
+	1	get_extension_cov
+	1	get_extension_gaps
+	1	get_stats_gfa
+	1	get_tpf
+	1	run_busco
+	2	run_merqury
+	1	tidk_search
+	15
+```
+
+This will evaluate the curated assemblies with gfastastats, busco and merqury. It will also produce low and hogh resolution pretextfiles with mapping quality 0.
 
 # Description of all options
 ```
@@ -476,6 +611,10 @@ Wildcards:
   --hic-list hic_wildcards
                         List with basename of the raw hic fastqs. Default None
 ```
+
+# Changes made to v3.2:
+
+1. Pairtools has been replaced by Chromap, improving a lot the efficiency of the Hi-C mapping and processing. 
 
 # Changes made to v3.0:
 
