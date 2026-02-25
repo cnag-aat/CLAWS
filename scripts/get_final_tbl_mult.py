@@ -27,7 +27,7 @@ qvs = {}
 completeness = {}
 merqs_dict = {}
 if args.merqs != None:
-  print("assembly\tcN50\tcL50\tsN50\tsL50\ttotal_len\ttotal_seq\tBUSCOv5\tQV\tMerqury_completeness\tFalse_duplications")
+  print("assembly\tcN50\tcL50\tsN50\tsL50\ttotal_len\ttotal_seq\tBUSCOv6\tQV\tMerqury_completeness\tFalse_duplications")
   for file in args.merqs:
     base = os.path.basename(os.path.dirname(file))
     merqdir = os.path.dirname(file)

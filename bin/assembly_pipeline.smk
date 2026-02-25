@@ -34,6 +34,7 @@ hifiasm_dir = config["Outputs"]["hifiasm_dir"]
 flye_assembly = config["Outputs"]["flye_out"]
 nextdenovo_assembly = config["Outputs"]["nextdenovo_out"]
 hifiasm_assemblies = config["Outputs"]["hifiasm_out"]
+curated_assemblies = {}
 
 targets = []
 

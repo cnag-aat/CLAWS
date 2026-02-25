@@ -196,6 +196,52 @@ rule align_hic:
     > {output.unmapped}
     """
 
+rule align_hic_chromap:
+  input:
+    ass = "assembly.fa",
+    read1 = "HiC.R1.fastq.gz",
+    read2 = "HiC.R2.fastq.gz"
+  output:
+    mapped = "mapped.CM.mq0.sorted.bam",
+    unmapped = "unmapped_hic.bam" 
+  params:
+    outd = "mappings",
+    name = "assembly",
+    options = "-k 21 -w 30",
+    mem = "4G",
+    tmpd = "tmp",
+  conda:
+    "../envs/chromap_samtools.yaml"
+  shell:
+    """
+    threads_half=$(({threads}/2));
+    mkdir -p {params.outd};
+    mkdir -p {params.tmpd};
+    chromap -i  -r {input.ass}  -o {params.outd}/{params.name}.index {params.options};
+    chromap --preset hic -x {params.outd}{params.name}.index  -r {input.ass} -1 {input.read1} -2 {input.read2} -t {threads} -q 0 --remove-pcr-duplicates --SAM -o {params.tmpd}/{params.name}.full_hic.sam;
+    samtools view -@ $threads_half -b -F 4 {params.tmpd}/{params.name}.full_hic.sam | samtools sort -@ {threads} -m {params.mem} -o {output.mapped};
+    samtools view -@ $threads_half -b -f 4 {params.tmpd}/{params.name}.full_hic.sam -o {output.unmapped};
+    rm {params.tmpd}/{params.name}.full_hic.sam;
+    rm -r {params.tmpd};
+    """
+
+rule filter_chromap:
+  input:
+    bam = "mapped.CM.mq0.sorted.bam"
+  output: 
+    filtered = "mapped.CM.mq10.sorted.bam"
+  params:
+    mq = 10,
+    mem = '4G'
+  conda:
+    "../envs/chromap_samtools.yaml"
+  shell:
+    """
+    threads_half=$(({threads}/2));
+  #  samtools view -@ $threads_half -b -F 4 -q {params.mq} {input.bam} | samtools sort -@ {threads} -m {params.mem} -o {output.filtered};
+    samtools view -@ $threads_half -b -F 4 -q {params.mq} {input.bam} -o {output.filtered};
+    """
+
 rule pairtools_processing:
   input: 
     mapped = "full_hic.bam",

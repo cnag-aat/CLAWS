@@ -26,7 +26,7 @@ rule assembly_prepare:
 
 rule run_yahs:
   input: 
-    mappedptsort = "mapped.PT.mq.name_sorted.bam",
+    mappedsort = "mapped.CM.mq10.sorted.bam",
     sla = "assembly.fa",
     index = "assembly.fa.fai"
   output:
@@ -36,7 +36,7 @@ rule run_yahs:
     yahsdir = "s06.1_p05.1_HiC_scaffolding/",
     contig_ec = " --no-contig-ec ",
     yahsopts = "",
-    mq = 40,
+    mq = 10,
     name = "assembly"
   conda:
     "../envs/yahs1.2a.2.yaml"
@@ -44,14 +44,14 @@ rule run_yahs:
     """
     mkdir -p {params.yahsdir} 
     cd {params.yahsdir}
-    yahs {input.sla} {params.contig_ec} {params.yahsopts} {input.mappedptsort} 
+    yahs {input.sla} {params.contig_ec} {params.yahsopts} {input.mappedsort} 
     ln -s {params.yahsdir}/yahs.out_scaffolds_final.fa {output.outyahs}
     ln -s {params.yahsdir}/yahs.out_scaffolds_final.agp {output.agp}
     """
 
 rule generate_pretext:
   input:
-    mapbam = "mapped.PT.mq10.bam"  
+    mapbam = "mapped.CM.mq10.sorted.bam"  
   output:
     pret = "assembly_mq10.pretext",
     hr_pret = "assembly_mq10.HR.pretext", 
@@ -68,7 +68,6 @@ rule generate_pretext:
     """
     export PATH="{params.scripts_dir}:$PATH;"
     mkdir -p {params.outd}/snapshots/three_wave_blue_green_yellow/
-    mkdir -p {params.outd}/snapshots/HR_three_wave_blue_green_yellow/
     cd {params.outd}/
 
     samtools view -@ {threads} -h {input.mapbam} | PretextMap -o {output.pret} \
@@ -82,12 +81,6 @@ rule generate_pretext:
 
     PretextSnapshot -m {output.pret} --sequences "=all" \
     -o snapshots/three_wave_blue_green_yellow
-
-   # PretextSnapshot -m {output.hr_pret}  --sequences "=full" \
-    -o snapshots/HR_three_wave_blue_green_yellow
-
-    #PretextSnapshot -m {output.hr_pret} --sequences "=all" \
-    -o snapshots/HR_three_wave_blue_green_yellow
 
     touch {output.ptd}    
     """

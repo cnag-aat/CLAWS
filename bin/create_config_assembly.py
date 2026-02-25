@@ -330,7 +330,7 @@ class CreateConfigurationFile(object):
         self.concat_meryl_qos = "normal"
         self.concat_meryl_time = "6:00:00"
         self.concat_meryl_queue = "general"
-        self.concat_meryl_mem = "10G"
+        self.concat_meryl_mem = "50G"
 
         #SMUDGEPLOT SPEC PARAMETERS
         self.smudgeplot_qos = "marathon_assembly"
@@ -458,7 +458,7 @@ class CreateConfigurationFile(object):
         self.yahs_contig_ec = False
         self.yahs_opts = " "
         self.assembly_qc = None   
-        self.hic_map_opts = " -5SP -T0 "                                                               #Path to the assembly to be used perfom the QC of the HiC reads
+        self.hic_map_opts = "  "                                                               #Path to the assembly to be used perfom the QC of the HiC reads
         self.mq = [0,10]                                                                          #Mapping qualities to use for producing the outputs
         self.hic_qc_assemblylen = ""                                                              #Length of the assembly to be used for hic_qc
         self.hic_readsblast = 100                                                                     #Number of unmapped hic reads to blast
@@ -602,6 +602,7 @@ class CreateConfigurationFile(object):
         self.hicParameters = {}
         self.assprepSpecParameters = {}
         self.mapHicSpecParameters = {}
+        self.filterHicSpecParameters = {}
         self.pairtoolsParseSpecParameters = {}
         self.pairtoolsSortSpecParameters = {}
         self.pairtoolsDedupSpecParameters = {}
@@ -1195,7 +1196,7 @@ class CreateConfigurationFile(object):
               args.assemblies_cur[m] = "s0" + str(cstep) + "_p" + nstep
               paths += 0.1
         
-        if args.hifi_dir:
+        if args.hifi_dir  or args.hifi_reads:
            require_pb()
 
         if args.ONT_dir:
@@ -1416,6 +1417,7 @@ class CreateConfigurationFile(object):
           args.flye_mem = "700G"
 
         if gsize > 1000:
+          args.hic_map_opts = " -k 21 -w 30"
           args.concat_cores = 16
           args.flye_qos = "marathon_assembly"
           args.flye_time = "150:00:00"
@@ -2046,7 +2048,19 @@ class CreateConfigurationFile(object):
         self.mapHicSpecParameters["time"] = args.map_hic_time
         self.mapHicSpecParameters["queue"] = args.map_hic_queue
         self.mapHicSpecParameters["mem"] = args.map_hic_mem
-        self.allParameters ["align_hic"] = self.mapHicSpecParameters
+        self.allParameters ["align_hic_chromap"] = self.mapHicSpecParameters
+
+    def storefilterHicSpecParameters(self,args):
+        """Updates map HiC cluster spec parameters to the map of parameters to be store in a JSON file
+
+        args -- set of parsed arguments
+        """
+        self.filterHicSpecParameters["name"] = "{rule}_" + args.base_name + "_{wildcards.name}_{wildcards.mq}"
+        self.filterHicSpecParameters["qos"] = args.map_hic_qos
+        self.filterHicSpecParameters["time"] = args.map_hic_time
+        self.filterHicSpecParameters["queue"] = args.map_hic_queue
+        self.filterHicSpecParameters["mem"] = args.map_hic_mem
+        self.allParameters ["filter_chromap"] = self.filterHicSpecParameters
 
     def storepairtoolsParseSpecParameters(self,args):
         """Updates pairtools cluster spec parameters to the map of parameters to be store in a JSON file
@@ -2406,12 +2420,14 @@ if args.run_tigmint == True:
 if args.hic_dir:
   specManager.storeassprepSpecParameters(args)
   specManager.storemapHicSpecParameters(args)
-  specManager.storepairtoolsParseSpecParameters(args)
-  specManager.storepairtoolsSortSpecParameters(args)
-  specManager.storepairtoolsDedupSpecParameters(args)
-  specManager.storepairtoolsSplitSpecParameters(args)
-  specManager.storeqcstatsSpecParameters(args)
-  specManager.storeblastSpecParameters(args)
+  specManager.storefilterHicSpecParameters(args)
+  if args.hic_deepseq == False:
+    specManager.storepairtoolsParseSpecParameters(args)
+    specManager.storepairtoolsSortSpecParameters(args)
+    specManager.storepairtoolsDedupSpecParameters(args)
+    specManager.storepairtoolsSplitSpecParameters(args)
+    specManager.storeqcstatsSpecParameters(args)
+    specManager.storeblastSpecParameters(args)
   if args.run_yahs == True:
     specManager.storeyahsSpecParameters(args)
   if args.get_pretext == True:
