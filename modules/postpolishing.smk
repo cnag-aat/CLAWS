@@ -113,7 +113,7 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
       postpolish.append(hic_out_dir[name] + name + ".yhs_mq" + str(yahs_mq) + ".fa")
       tpf_files.append(hic_out_dir[name] + name + ".yhs_mq" + str(yahs_mq) + ".fa.tpf")  
 
-  curated_assemblies = {}
+  
   for i in config["Inputs"]["Curated Assemblies"]:
     assembly = i     
     name = os.path.splitext(os.path.basename(assembly))[0]
@@ -238,7 +238,7 @@ if config['Inputs']['HiC_dir'] and config["Wildcards"]["HiC_wildcards"]:
   if config['Parameters']['run_yahs']:
     use rule run_yahs from hic_workflow with:
       input:
-        mappedptsort = "{directory}/in_pretext/pairtools_out/mapped.PT.mq" + str(config['HiC']["yahs_mq"]) + ".{name}.name_sorted.bam",
+        mappedsort = "{directory}/mappings/{name}.CM.mq" + str(config['HiC']["yahs_mq"]) + ".sorted.bam",
         sla = lambda wildcards: hic_assemblies[wildcards.name],
         index = lambda wildcards: hic_assemblies[wildcards.name] + ".fai"
       output:
@@ -276,7 +276,7 @@ if config['HiC']['get_pretext']:
 
   use rule generate_pretext from hic_workflow with:
     input:
-      mapbam = "{directory}/pairtools_out/mapped.PT.mq{mq}.{name}.bam"
+      mapbam = "{directory}/mappings/{name}.CM.mq{mq}.sorted.bam"
     output:
       pret = "{directory}/{name}_mq{mq}.pretext", 
       hr_pret = "{directory}/{name}_mq{mq}.HR.pretext", 
@@ -303,7 +303,6 @@ if config['HiC']['get_pretext']:
       ontcov = lambda wildcards: "{directory}/{name}.LRcoverage.bg" if len(minimap2) > 0 else "",
       pret = "{directory}/{name}_mq{mq}.pretext",  
       hr_pret = "{directory}/{name}_mq{mq}.HR.pretext",
-      stats = "{directory}/HiC_Final_LibraryStats_mq{mq}.{name}.txt"
     output:
       pretext = "{directory}/{name}_mq{mq}.extensions.pretext", 
       hr_pretext = "{directory}/{name}_mq{mq}.extensions.HR.pretext", 

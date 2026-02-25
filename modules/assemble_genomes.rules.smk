@@ -93,4 +93,3 @@ rule hifiasm:
     "hifiasm {params.other_hfsm_opts}  {params.teloseq} {params.phase} -o {params.out_base} -t {threads} {input.reads};"
     "for i in {output.fastas}; do b=`basename $i \".fa\"`; ln -s $b.p_ctg.gfa $b.gfa; awk \'/^S/{{print \">\"$2\"\\n\"$3}}\' $b.gfa > $b.fa; Bandage image $b.gfa $b.gfa.png;done"
 
-
