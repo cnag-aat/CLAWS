@@ -479,16 +479,18 @@ rule get_extension_gaps:
     sleep 4m
     """
 
+# Read depth: primary and supplementary alignments, not secondary (0x100). bedtools genomecov
+# counts secondary ones too, so repeats showed ~1000x where the reads gave ~100x.
 rule get_extension_cov:
   input:
     sbam = "sorted.bam"
   output:
     ontcov = "ONTcoverage.bg"  
   conda:
-    "../envs/bedtools2.30.0.yaml"
+    "../envs/merqury1.3.yaml"
   shell:
     """
-    bedtools genomecov -bga -ibam {input.sbam}  > {output.ontcov}
+    samtools view -u -F 0x100 {input.sbam} | bedtools genomecov -bga -ibam stdin > {output.ontcov}
     """
 
 rule tidk_search:
